@@ -7,6 +7,11 @@ from edge_lab.persistence.models import User, Strategy, Variant, Run, RunMetrics
 from edge_lab.services.run_service import RunService
 from edge_lab.analytics.variant_analyzer import VariantAnalyzer
 from edge_lab.persistence.models import VariantMetrics
+from edge_lab.analytics.monte_carlo import MonteCarloEngine
+from edge_lab.analytics.risk_of_ruin import RiskOfRuinEngine
+from edge_lab.analytics.kelly_simulation import KellySimulationEngine
+from edge_lab.analytics.walk_forward import WalkForwardEngine
+from edge_lab.analytics.regime_detection import RegimeDetectionEngine
 
 
 app = typer.Typer(help="Edge Lab CLI")
@@ -234,3 +239,118 @@ def show_run(run_id: str):
         print(f"  Total Return: {metrics.total_return}")
     else:
         print("Run not closed yet — no metrics available.")
+
+@run_app.command("monte-carlo")
+def monte_carlo(run_id: str, simulations: int = 5000):
+    db = SessionLocal()
+
+    result = MonteCarloEngine.bootstrap_run(
+        db=db,
+        run_id=uuid.UUID(run_id),
+        simulations=simulations,
+    )
+
+    print("Monte Carlo Results")
+    print("-----------------------------")
+    print("Mean Final Return:", result["mean_final_return"])
+    print("Median Final Return:", result["median_final_return"])
+    print("5% Worst Return:", result["p5_final_return"])
+    print("95% Best Return:", result["p95_final_return"])
+    print("")
+    print("Mean Max Drawdown:", result["mean_max_dd"])
+    print("Worst Case Drawdown:", result["worst_case_dd"])
+    print("95% Drawdown Percentile:", result["p95_dd"])
+
+@run_app.command("risk-of-ruin")
+def risk_of_ruin(
+    run_id: str,
+    simulations: int = 5000,
+    position_fraction: float = 0.01,
+    ruin_threshold: float = 0.7,
+):
+    db = SessionLocal()
+
+    result = RiskOfRuinEngine.simulate(
+        db=db,
+        run_id=uuid.UUID(run_id),
+        simulations=simulations,
+        position_fraction=position_fraction,
+        ruin_threshold=ruin_threshold,
+    )
+
+    print("Risk of Ruin Simulation")
+    print("-----------------------------")
+    print("Ruin Probability:", result["ruin_probability"])
+    print("Mean Final Capital:", result["mean_final_capital"])
+    print("Median Final Capital:", result["median_final_capital"])
+    print("Mean Max Drawdown:", result["mean_max_drawdown"])
+    print("Worst Case Drawdown:", result["worst_case_drawdown"])
+
+@run_app.command("kelly-sim")
+def kelly_simulation(
+    run_id: str,
+    simulations: int = 3000,
+    ruin_threshold: float = 0.7,
+):
+    db = SessionLocal()
+
+    result = KellySimulationEngine.evaluate_fractions(
+        db=db,
+        run_id=uuid.UUID(run_id),
+        simulations=simulations,
+        ruin_threshold=ruin_threshold,
+    )
+
+    print("Kelly Simulation Results")
+    print("-----------------------------")
+
+    print("Growth Optimal Fraction:")
+    print(result["growth_optimal"])
+
+    print("\nSafe Fraction (ruin < 5%):")
+    print(result["safe_fraction"])
+
+@run_app.command("walk-forward")
+def walk_forward(
+    run_id: str,
+    train_size: int = 50,
+    test_size: int = 50,
+):
+    db = SessionLocal()
+
+    results = WalkForwardEngine.run(
+        db=db,
+        run_id=uuid.UUID(run_id),
+        train_size=train_size,
+        test_size=test_size,
+    )
+
+    print("Walk-Forward Results")
+    print("-----------------------------")
+
+    for i, r in enumerate(results):
+        print(f"Segment {i+1}")
+        print("Train Exp:", r["train_expectancy"])
+        print("Test Exp:", r["test_expectancy"])
+        print("Train Sharpe:", r["train_sharpe"])
+        print("Test Sharpe:", r["test_sharpe"])
+        print("")
+
+@run_app.command("regime-detect")
+def regime_detect(
+    run_id: str,
+    window: int = 20,
+    clusters: int = 2,
+):
+    db = SessionLocal()
+
+    result = RegimeDetectionEngine.detect(
+        db=db,
+        run_id=uuid.UUID(run_id),
+        window=window,
+        clusters=clusters,
+    )
+
+    print("Regime Detection")
+    print("-----------------------------")
+    print("Centroids:", result["centroids"])
