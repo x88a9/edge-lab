@@ -96,6 +96,8 @@ class Variant(Base):
     runs = relationship("Run", back_populates="variant")
 
 
+from sqlalchemy import Enum
+
 class Run(Base):
     __tablename__ = "runs"
 
@@ -111,9 +113,12 @@ class Run(Base):
         nullable=False
     )
 
-    run_type: Mapped[str] = mapped_column(
-        String(50),
-        nullable=False  # backtest, live
+    run_type: Mapped[str] = mapped_column(String(50), nullable=False)
+
+    status: Mapped[str] = mapped_column(
+        String(20),
+        default="open",
+        nullable=False
     )
 
     trade_limit: Mapped[int] = mapped_column(Integer, default=100)
@@ -126,6 +131,7 @@ class Run(Base):
 
     variant = relationship("Variant", back_populates="runs")
     trades = relationship("Trade", back_populates="run")
+
 
 
 class Trade(Base):
@@ -157,3 +163,31 @@ class Trade(Base):
     )
 
     run = relationship("Run", back_populates="trades")
+
+class RunMetrics(Base):
+    __tablename__ = "run_metrics"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        primary_key=True,
+        default=uuid.uuid4
+    )
+
+    run_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("runs.id"),
+        unique=True,
+        nullable=False
+    )
+
+    expectancy: Mapped[float] = mapped_column(Float)
+    win_rate: Mapped[float] = mapped_column(Float)
+    sharpe: Mapped[float] = mapped_column(Float)
+    volatility: Mapped[float] = mapped_column(Float)
+    max_drawdown: Mapped[float] = mapped_column(Float)
+    total_return: Mapped[float] = mapped_column(Float)
+
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime,
+        default=datetime.utcnow
+    )

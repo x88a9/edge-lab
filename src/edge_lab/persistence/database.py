@@ -7,7 +7,7 @@ DATABASE_URL = os.getenv(
     "postgresql+psycopg://edge:edge@localhost:5433/edge_lab"
 )
 
-engine = create_engine(DATABASE_URL, echo=True)
+engine = create_engine(DATABASE_URL, echo=False)
 SessionLocal = sessionmaker(bind=engine)
 
 
