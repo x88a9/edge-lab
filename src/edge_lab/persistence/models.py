@@ -191,3 +191,39 @@ class RunMetrics(Base):
         DateTime,
         default=datetime.utcnow
     )
+    
+class VariantMetrics(Base):
+    __tablename__ = "variant_metrics"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        primary_key=True,
+        default=uuid.uuid4
+    )
+
+    variant_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("variants.id"),
+        unique=True,
+        nullable=False
+    )
+
+    total_runs: Mapped[int] = mapped_column(Integer)
+
+    mean_expectancy: Mapped[float] = mapped_column(Float)
+    std_expectancy: Mapped[float] = mapped_column(Float)
+
+    mean_sharpe: Mapped[float] = mapped_column(Float)
+    std_sharpe: Mapped[float] = mapped_column(Float)
+
+    mean_win_rate: Mapped[float] = mapped_column(Float)
+    mean_volatility: Mapped[float] = mapped_column(Float)
+
+    worst_max_dd: Mapped[float] = mapped_column(Float)
+
+    stability_score: Mapped[float] = mapped_column(Float)
+
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime,
+        default=datetime.utcnow
+    )

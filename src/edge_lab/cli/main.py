@@ -5,6 +5,9 @@ from sqlalchemy.orm import Session
 from edge_lab.persistence.database import SessionLocal
 from edge_lab.persistence.models import User, Strategy, Variant, Run, RunMetrics
 from edge_lab.services.run_service import RunService
+from edge_lab.analytics.variant_analyzer import VariantAnalyzer
+from edge_lab.persistence.models import VariantMetrics
+
 
 app = typer.Typer(help="Edge Lab CLI")
 
@@ -105,6 +108,32 @@ def list_variants():
 
     for v in variants:
         print(f"{v.id} | {v.name} | v{v.version_number}")
+
+@variant_app.command("analyze")
+def analyze_variant(variant_id: str):
+    db = SessionLocal()
+
+    result = VariantAnalyzer.analyze_variant(
+        db=db,
+        variant_id=uuid.UUID(variant_id),
+    )
+
+    snapshot = result["snapshot"]
+
+    print("Variant Analysis")
+    print("-----------------------------")
+    print("Total Runs:", snapshot.total_runs)
+    print("Mean Expectancy:", snapshot.mean_expectancy)
+    print("Std Expectancy:", snapshot.std_expectancy)
+    print("Mean Sharpe:", snapshot.mean_sharpe)
+    print("Worst Max DD:", snapshot.worst_max_dd)
+
+    print("\nAdvanced Statistics:")
+    print("t-Statistic:", result["t_stat"])
+    print("95% CI:", result["ci_lower"], "to", result["ci_upper"])
+    print("P(Edge > 0):", result["prob_edge_positive"])
+
+
 
 
 # ==================================================
