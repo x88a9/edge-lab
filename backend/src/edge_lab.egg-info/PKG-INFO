@@ -1,0 +1,17 @@
+Metadata-Version: 2.4
+Name: edge-lab
+Version: 0.1.0
+Summary: modular research framework for systematic trading
+Author: Fabian Huber (@x88a9)
+Requires-Python: >=3.11
+Requires-Dist: sqlalchemy>=2.0
+Requires-Dist: psycopg[binary]>=3.1
+Requires-Dist: alembic>=1.13
+Requires-Dist: pydantic>=2.0
+Requires-Dist: typer>=0.9
+Requires-Dist: numpy>=1.26
+Requires-Dist: pandas>=2.0
+Requires-Dist: scipy>=1.11
+Requires-Dist: scikit-learn>=1.3
+Requires-Dist: fastapi>=0.110
+Requires-Dist: uvicorn>=0.29

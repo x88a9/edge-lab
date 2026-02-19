@@ -1,0 +1,27 @@
+services:
+  db:
+    image: postgres:15
+    container_name: edge-postgres
+    environment:
+      POSTGRES_DB: edge_lab
+      POSTGRES_USER: edge
+      POSTGRES_PASSWORD: edge
+    ports:
+      - "5433:5432"
+    volumes:
+      - db_data:/var/lib/postgresql/data
+
+  backend:
+    build:
+      context: ./backend
+    container_name: edge-backend
+    depends_on:
+      - db
+    ports:
+      - "8000:8000"
+    environment:
+      DATABASE_URL: postgresql+psycopg://edge:edge@db:5432/edge_lab
+    command: uvicorn edge_lab.api.main:app --host 0.0.0.0 --port 8000 --reload
+
+volumes:
+  db_data:

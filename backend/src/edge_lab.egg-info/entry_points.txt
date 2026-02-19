@@ -1,0 +1,2 @@
+[console_scripts]
+edge = edge_lab.cli.main:app
