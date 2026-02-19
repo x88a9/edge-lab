@@ -1,17 +1,135 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException
 from sqlalchemy.orm import Session
 from edge_lab.persistence.database import SessionLocal
+from edge_lab.persistence.models import Run, Trade
+
+from edge_lab.analytics.metrics import MetricsEngine
+from edge_lab.analytics.equity import EquityBuilder
 from edge_lab.analytics.monte_carlo import MonteCarloEngine
 from edge_lab.analytics.risk_of_ruin import RiskOfRuinEngine
-from fastapi import HTTPException
+from edge_lab.analytics.walk_forward import WalkForwardEngine
+from edge_lab.analytics.regime_detection import RegimeDetectionEngine
+from edge_lab.analytics.kelly_simulation import KellySimulationEngine
+
 import uuid
 
-router = APIRouter()
+router = APIRouter(tags=["Runs"])
 
+@router.get("/")
+def list_runs():
+    db: Session = SessionLocal()
+    try:
+        runs = db.query(Run).all()
+
+        if not runs:
+            raise ValueError("No runs found.")
+
+        return [
+            {
+                "id": r.id,
+                "variant_id": r.variant_id,
+                "status": r.status,
+                "run_type": r.run_type,
+                "initial_capital": r.initial_capital,
+            }
+            for r in runs
+        ]
+
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception:
+        raise HTTPException(status_code=500, detail="Internal server error.")
+    finally:
+        db.close()
+
+
+@router.get("/{run_id}/metrics")
+def metrics(run_id: str):
+    db = SessionLocal()
+    try:
+        result = MetricsEngine.generate_for_run(
+            db=db,
+            run_id=uuid.UUID(run_id),
+        )
+        return result
+
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    finally:
+        db.close()
+
+
+@router.get("/{run_id}/equity")
+def equity_curve(run_id: str):
+    db: Session = SessionLocal()
+    try:
+        result = EquityBuilder.build_equity_series(
+            db=db,
+            run_id=uuid.UUID(run_id),
+        )
+        return result
+
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception:
+        raise HTTPException(status_code=500, detail="Internal server error.")
+    finally:
+        db.close()
+
+@router.get("/{run_id}/walk-forward")
+def walk_forward(run_id: str):
+    db: Session = SessionLocal()
+    try:
+        result = WalkForwardEngine.run(
+            db=db,
+            run_id=uuid.UUID(run_id),
+        )
+        return result
+
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception:
+        raise HTTPException(status_code=500, detail="Internal server error.")
+    finally:
+        db.close()
+
+@router.get("/{run_id}/regime-detection")
+def regime_detection(run_id: str):
+    db: Session = SessionLocal()
+    try:
+        result = RegimeDetectionEngine.detect(
+            db=db,
+            run_id=uuid.UUID(run_id),
+        )
+        return result
+
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception:
+        raise HTTPException(status_code=500, detail="Internal server error.")
+    finally:
+        db.close()
+
+@router.get("/{run_id}/kelly-simulation")
+def kelly_simulation(run_id: str):
+    db: Session = SessionLocal()
+    try:
+        result = KellySimulationEngine.generate_for_run(
+            db=db,
+            run_id=uuid.UUID(run_id),
+        )
+        return result
+
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception:
+        raise HTTPException(status_code=500, detail="Internal server error.")
+    finally:
+        db.close()
 
 @router.get("/{run_id}/monte-carlo")
 def monte_carlo(run_id: str):
-    db = SessionLocal()
+    db: Session = SessionLocal()
     try:
         result = MonteCarloEngine.bootstrap_run(
             db=db,
@@ -21,8 +139,14 @@ def monte_carlo(run_id: str):
         return result
 
     except ValueError as e:
+        # z.B. No trades found
         raise HTTPException(status_code=400, detail=str(e))
 
+    except Exception:
+        raise HTTPException(status_code=500, detail="Internal server error.")
+
+    finally:
+        db.close()
 
 @router.get("/{run_id}/risk-of-ruin")
 def risk_of_ruin(run_id: str):
@@ -40,4 +164,87 @@ def risk_of_ruin(run_id: str):
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
+    except Exception:
+        raise HTTPException(status_code=500, detail="Internal server error.")
 
+    finally:
+        db.close()
+
+@router.get("/{run_id}")
+def get_run(run_id: str):
+    db: Session = SessionLocal()
+    try:
+        run = db.query(Run).filter_by(id=uuid.UUID(run_id)).first()
+
+        if not run:
+            raise ValueError("Run not found.")
+
+        return {
+            "id": run.id,
+            "variant_id": run.variant_id,
+            "status": run.status,
+            "run_type": run.run_type,
+            "initial_capital": run.initial_capital,
+            "trade_limit": run.trade_limit,
+            "created_at": run.created_at,
+        }
+
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception:
+        raise HTTPException(status_code=500, detail="Internal server error.")
+    finally:
+        db.close()
+@router.get("/{run_id}/trades")
+def list_trades_for_run(run_id: str):
+    db: Session = SessionLocal()
+    try:
+        trades = db.query(Trade).filter_by(
+            run_id=uuid.UUID(run_id)
+        ).all()
+
+        if not trades:
+            raise ValueError("No trades found for this run.")
+
+        return [
+            {
+                "id": t.id,
+                "entry_price": t.entry_price,
+                "exit_price": t.exit_price,
+                "size": t.size,
+                "direction": t.direction,
+                "raw_return": t.raw_return,
+                "log_return": t.log_return,
+                "created_at": t.created_at,
+            }
+            for t in trades
+        ]
+
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception:
+        raise HTTPException(status_code=500, detail="Internal server error.")
+    finally:
+        db.close()
+
+@router.delete("/{run_id}")
+def delete_run(run_id: str):
+    db: Session = SessionLocal()
+    try:
+        run = db.query(Run).filter_by(id=uuid.UUID(run_id)).first()
+
+        if not run:
+            raise ValueError("Run not found.")
+
+        db.delete(run)
+        db.commit()
+
+        return {"status": "deleted"}
+
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception:
+        db.rollback()
+        raise HTTPException(status_code=500, detail="Internal server error.")
+    finally:
+        db.close()

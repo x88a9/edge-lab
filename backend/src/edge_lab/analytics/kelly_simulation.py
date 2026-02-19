@@ -55,3 +55,39 @@ class KellySimulationEngine:
             "growth_optimal": best_growth,
             "safe_fraction": safe_fraction,
         }
+
+    @staticmethod
+    def generate_for_run(db: Session, run_id):
+
+        raw_results = KellySimulationEngine.evaluate_fractions(
+            db=db,
+            run_id=run_id,
+        )
+
+        # JSON-safe casting
+        clean_results = []
+        for r in raw_results:
+            clean_results.append({
+                "fraction": float(r["fraction"]),
+                "mean_final_capital": float(r["mean_final_capital"]),
+                "ruin_probability": float(r["ruin_probability"]),
+                "mean_max_drawdown": float(r["mean_max_drawdown"]),
+            })
+
+        best_growth = max(clean_results, key=lambda x: x["mean_final_capital"])
+
+        safe_candidates = [
+            r for r in clean_results if r["ruin_probability"] < 0.05
+        ]
+
+        safe_fraction = max(
+            safe_candidates,
+            key=lambda x: x["mean_final_capital"],
+            default=None
+        )
+
+        return {
+            "all_results": clean_results,
+            "growth_optimal": best_growth,
+            "safe_fraction": safe_fraction,
+        }
