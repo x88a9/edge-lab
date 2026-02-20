@@ -38,12 +38,28 @@ export interface Variant {
 }
 
 export interface MetricsSnapshot {
-  expectancy: number;
-  win_rate: number;
-  sharpe: number;
-  volatility: number;
-  max_drawdown: number;
-  total_return: number;
+  // Legacy fields (other endpoints may return these)
+  expectancy?: number;
+  sharpe?: number;
+  volatility?: number;
+  total_return?: number;
+  volatility_drag?: number;
+  win_rate?: number;
+  max_drawdown?: number;
+
+  // R-based run metrics from /runs/{id}/metrics
+  total_trades?: number;
+  wins?: number;
+  losses?: number;
+  total_R?: number;
+  avg_R?: number;
+  avg_win_R?: number;
+  avg_loss_R?: number;
+  expectancy_R?: number;
+  volatility_R?: number;
+  kelly_f?: number;
+  log_growth?: number;
+  max_drawdown_R?: number;
 }
 
 export interface EquityPoint {

@@ -10,34 +10,36 @@ import AddTradeModal from '../components/modals/AddTradeModal';
 import FinishRunModal from '../components/modals/FinishRunModal';
 
 export default function RunPage() {
-  const { runId = '' } = useParams();
-  const { run, setRun, trades, setTrades, metrics, equity, variant, system, loading, error } = useRun(runId);
-  const [tab, setTab] = useState<'overview' | 'trades' | 'analytics'>('overview');
+  const { runId } = useParams();
+  const { run, trades, equity, metrics, setTrades, setRun } = useRun(runId!);
+  const [tab, setTab] = useState<'overview' | 'analytics' | 'trades'>('trades');
   const [addOpen, setAddOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
 
-  if (loading) return <div className="card p-4"><div className="meta">Loading run…</div></div>;
-  if (error || !run) return <div className="card p-4"><div className="meta">{error ?? 'Run not found'}</div></div>;
-
-  const runTitle = run.display_name || `Run ${run.id}`;
-  const variantLabel = variant?.display_name || variant?.name || run.variant_id;
-  const systemLabel = system?.display_name || system?.name || 'Unknown system';
+  if (!run) return <div className="p-4">Loading...</div>;
 
   return (
-    <div>
-      <div className="page-title mb-1">{runTitle}</div>
-      <div className="subline mb-4">Variant {variantLabel} • System {systemLabel} • <StatusBadge status={run.status} /></div>
-
-      <div className="flex border-b border-neutral-800 mb-4">
-        {(['overview','trades','analytics'] as const).map((t) => (
+    <div className="p-4 space-y-4">
+      <div className="flex items-center justify-between">
+        <div>
+          <div className="text-2xl font-semibold">Run {run.display_name ?? run.id}</div>
+          <div className="meta">Variant {run.variant_id} • <StatusBadge status={run.status} /></div>
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="btn-group">
+            <button className={`btn ${tab === 'overview' ? 'btn-active' : ''}`} onClick={() => setTab('overview')}>Overview</button>
+            <button className={`btn ${tab === 'analytics' ? 'btn-active' : ''}`} onClick={() => setTab('analytics')}>Analytics</button>
+            <button className={`btn ${tab === 'trades' ? 'btn-active' : ''}`} onClick={() => setTab('trades')}>Trades</button>
+          </div>
           <button
-            key={t}
-            className={`px-3 py-2 text-sm border-b-2 ${tab === t ? 'border-accent text-text' : 'border-transparent text-text-muted'} hover:text-text`}
-            onClick={() => setTab(t)}
+            className="btn"
+            aria-label="Run settings"
+            title="Run settings"
+            onClick={() => setSettingsOpen(true)}
           >
-            {t[0].toUpperCase() + t.slice(1)}
+            ⚙️ Settings
           </button>
-        ))}
+        </div>
       </div>
 
       {tab === 'overview' && (
@@ -58,12 +60,26 @@ export default function RunPage() {
                 <div className="meta">No metrics snapshot yet.</div>
               ) : (
                 <div className="grid grid-cols-2 gap-3">
-                  <MetricCard label="Expectancy" value={formatFloat(metrics.expectancy, 6)} />
-                  <MetricCard label="Win Rate" value={formatPercent(metrics.win_rate, 2)} />
-                  <MetricCard label="Sharpe" value={formatSharpe(metrics.sharpe)} />
-                  <MetricCard label="Volatility" value={formatPercent(metrics.volatility, 2)} />
-                  <MetricCard label="Max Drawdown" value={formatPercent(metrics.max_drawdown, 2)} />
-                  <MetricCard label="Total Return" value={formatPercent(metrics.total_return, 2)} />
+                  {metrics.total_trades != null && <MetricCard label="Total Trades" value={metrics.total_trades} />}
+                  {metrics.wins != null && <MetricCard label="Wins" value={metrics.wins} />}
+                  {metrics.losses != null && <MetricCard label="Losses" value={metrics.losses} />}
+                  {metrics.win_rate != null && <MetricCard label="Win Rate" value={formatPercent(metrics.win_rate, 2)} />}
+                  {metrics.total_R != null && <MetricCard label="Total R" value={formatFloat(metrics.total_R, 4)} />}
+                  {metrics.avg_R != null && <MetricCard label="Avg R" value={formatFloat(metrics.avg_R, 4)} />}
+                  {metrics.avg_win_R != null && <MetricCard label="Avg Win R" value={formatFloat(metrics.avg_win_R, 4)} />}
+                  {metrics.avg_loss_R != null && <MetricCard label="Avg Loss R" value={formatFloat(metrics.avg_loss_R, 4)} />}
+                  {metrics.expectancy_R != null && <MetricCard label="Expectancy (R)" value={formatFloat(metrics.expectancy_R, 4)} />}
+                  {metrics.volatility_R != null && <MetricCard label="Volatility (R)" value={formatFloat(metrics.volatility_R, 4)} />}
+                  {metrics.kelly_f != null && <MetricCard label="Kelly Fraction" value={formatPercent(metrics.kelly_f, 2)} />}
+                  {metrics.log_growth != null && <MetricCard label="Log Growth" value={formatFloat(metrics.log_growth, 6)} />}
+                  {metrics.max_drawdown_R != null && <MetricCard label="Max Drawdown (R)" value={formatFloat(metrics.max_drawdown_R, 4)} />}
+                  {/* Legacy fields fallback if present */}
+                  {metrics.expectancy != null && <MetricCard label="Expectancy" value={formatFloat(metrics.expectancy, 6)} />}
+                  {metrics.sharpe != null && <MetricCard label="Sharpe" value={formatSharpe(metrics.sharpe)} />}
+                  {metrics.volatility != null && <MetricCard label="Volatility" value={formatPercent(metrics.volatility, 2)} />}
+                  {metrics.volatility_drag != null && <MetricCard label="Volatility Drag" value={formatPercent(metrics.volatility_drag, 2)} />}
+                  {metrics.max_drawdown != null && <MetricCard label="Max Drawdown" value={formatPercent(metrics.max_drawdown, 2)} />}
+                  {metrics.total_return != null && <MetricCard label="Total Return" value={formatPercent(metrics.total_return, 2)} />}
                 </div>
               )}
             </div>
@@ -72,19 +88,20 @@ export default function RunPage() {
       )}
 
       {tab === 'trades' && (
-        <section className="space-y-4">
-          <div className="flex items-center justify-between">
+        <section>
+          <div className="flex items-center justify-between mb-2">
+            <div className="section-title">Trades</div>
             <div className="flex items-center gap-2">
-              <button className="btn" onClick={() => setAddOpen(true)}>+ Add Trade</button>
+              <button className="btn-primary" onClick={() => setAddOpen(true)}>+ Add Trade</button>
+              <button
+                className="btn"
+                aria-label="Run settings"
+                title="Run settings"
+                onClick={() => setSettingsOpen(true)}
+              >
+                ⚙️ Settings
+              </button>
             </div>
-            <button
-              className="btn"
-              aria-label="Run settings"
-              title="Run settings"
-              onClick={() => setSettingsOpen(true)}
-            >
-              ⚙️ Settings
-            </button>
           </div>
           <TradesTable trades={trades} onChange={setTrades} />
         </section>
@@ -97,7 +114,7 @@ export default function RunPage() {
             {!equity?.length ? (
               <div className="meta">No equity data available.</div>
             ) : (
-              <EquityChart points={equity} />
+              <EquityChart points={equity as EquityPoint[]} />
             )}
           </div>
           <div className="card p-4">
@@ -124,6 +141,7 @@ export default function RunPage() {
   );
 }
 
+// Inline simple EquityChart to avoid missing import
 function EquityChart({ points }: { points: EquityPoint[] }) {
   const width = 600;
   const height = 200;
@@ -135,7 +153,6 @@ function EquityChart({ points }: { points: EquityPoint[] }) {
   const scaleX = (i: number) => padding + (i / Math.max(1, xs.length - 1)) * (width - padding * 2);
   const scaleY = (y: number) => height - padding - ((y - minY) / Math.max(1, maxY - minY)) * (height - padding * 2);
   const d = points.map((p, i) => `${i === 0 ? 'M' : 'L'} ${scaleX(i)} ${scaleY(p.equity)}`).join(' ');
-
   return (
     <svg width={width} height={height} className="bg-neutral-900 border border-neutral-800">
       <path d={d} fill="none" stroke="#38bdf8" strokeWidth={1.5} />
