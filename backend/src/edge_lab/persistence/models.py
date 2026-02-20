@@ -48,6 +48,7 @@ class Strategy(Base):
     )
 
     name: Mapped[str] = mapped_column(String(255), nullable=False)
+    display_name: Mapped[str] = mapped_column(String(255), nullable=True)
     description: Mapped[str] = mapped_column(Text, nullable=True)
     asset: Mapped[str] = mapped_column(String(100), nullable=False)
 
@@ -82,6 +83,7 @@ class Variant(Base):
     )
 
     name: Mapped[str] = mapped_column(String(255), nullable=False)
+    display_name: Mapped[str] = mapped_column(String(255), nullable=True)
     version_number: Mapped[int] = mapped_column(Integer, nullable=False)
 
     parameter_hash: Mapped[str] = mapped_column(String(255), nullable=False)
@@ -120,7 +122,7 @@ class Run(Base):
         default="open",
         nullable=False
     )
-
+    display_name: Mapped[str] = mapped_column(String(255), nullable=True)
     trade_limit: Mapped[int] = mapped_column(Integer, default=100)
     initial_capital: Mapped[float] = mapped_column(Float, nullable=False)
 

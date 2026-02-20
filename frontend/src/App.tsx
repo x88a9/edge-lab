@@ -1,17 +1,26 @@
-import { Routes, Route } from "react-router-dom";
-import Dashboard from "./pages/Dashboard";
-import RunDetail from "./pages/RunDetail";
-import AppLayout from "./layouts/AppLayout";
+import { Route, Routes, Navigate } from 'react-router-dom';
+import Layout from './layouts/Layout';
+import RunsList from './pages/RunsList';
+import RunPage from './pages/RunPage';
+import SystemsPage from './pages/SystemsPage';
+import VariantsPage from './pages/VariantsPage';
+import TradesPage from './pages/TradesPage';
+import VariantPage from './pages/VariantPage';
+import SystemPage from './pages/SystemPage';
 
-function App() {
+export default function App() {
   return (
-    <AppLayout>
+    <Layout>
       <Routes>
-        <Route path="/" element={<Dashboard />} />
-        <Route path="/runs/:id" element={<RunDetail />} />
+        <Route path="/" element={<Navigate to="/runs" replace />} />
+        <Route path="/runs" element={<RunsList />} />
+        <Route path="/runs/:runId" element={<RunPage />} />
+        <Route path="/systems" element={<SystemsPage />} />
+        <Route path="/systems/:systemId" element={<SystemPage />} />
+        <Route path="/variants" element={<VariantsPage />} />
+        <Route path="/variants/:variantId" element={<VariantPage />} />
+        <Route path="/trades" element={<TradesPage />} />
       </Routes>
-    </AppLayout>
+    </Layout>
   );
 }
-
-export default App;

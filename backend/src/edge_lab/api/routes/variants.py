@@ -20,6 +20,7 @@ def list_variants():
             {
                 "id": v.id,
                 "strategy_id": v.strategy_id,
+                "display_name": v.display_name or v.name,
                 "name": v.name,
                 "version": v.version_number,
             }
@@ -46,6 +47,7 @@ def get_variant(variant_id: str):
         return {
             "id": variant.id,
             "name": variant.name,
+            "display_name": variant.display_name or variant.name,
             "version": variant.version_number,
             "strategy_id": variant.strategy_id,
         }
@@ -71,6 +73,7 @@ def list_runs_for_variant(variant_id: str):
         return [
             {
                 "id": r.id,
+                "display_name": r.display_name,
                 "status": r.status,
                 "run_type": r.run_type,
                 "initial_capital": r.initial_capital,
@@ -100,6 +103,41 @@ def analyze_variant(variant_id: str):
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception:
+        raise HTTPException(status_code=500, detail="Internal server error.")
+    finally:
+        db.close()
+
+@router.post("/")
+def create_variant(
+    strategy_id: str,
+    name: str,
+    display_name: str,
+    version_number: int,
+    parameter_hash: str,
+    parameter_json: str,
+):
+    db: Session = SessionLocal()
+    try:
+        variant = Variant(
+            strategy_id=uuid.UUID(strategy_id),
+            name=name,
+            display_name=display_name,
+            version_number=version_number,
+            parameter_hash=parameter_hash,
+            parameter_json=parameter_json,
+        )
+
+        db.add(variant)
+        db.commit()
+        db.refresh(variant)
+
+        return {
+            "id": variant.id,
+            "display_name": variant.display_name,
+        }
+
+    except Exception:
+        db.rollback()
         raise HTTPException(status_code=500, detail="Internal server error.")
     finally:
         db.close()

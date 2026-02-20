@@ -28,6 +28,7 @@ def list_runs():
             {
                 "id": r.id,
                 "variant_id": r.variant_id,
+                "display_name": r.display_name or "Unnamed Run",
                 "status": r.status,
                 "run_type": r.run_type,
                 "initial_capital": r.initial_capital,
@@ -182,6 +183,7 @@ def get_run(run_id: str):
         return {
             "id": run.id,
             "variant_id": run.variant_id,
+            "display_name": run.display_name,
             "status": run.status,
             "run_type": run.run_type,
             "initial_capital": run.initial_capital,
@@ -243,6 +245,37 @@ def delete_run(run_id: str):
 
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
+    except Exception:
+        db.rollback()
+        raise HTTPException(status_code=500, detail="Internal server error.")
+    finally:
+        db.close()
+
+@router.post("/")
+def create_run(
+    variant_id: str,
+    display_name: str,
+    initial_capital: float,
+    run_type: str,
+):
+    db: Session = SessionLocal()
+    try:
+        run = Run(
+            variant_id=uuid.UUID(variant_id),
+            display_name=display_name,
+            initial_capital=initial_capital,
+            run_type=run_type,
+        )
+
+        db.add(run)
+        db.commit()
+        db.refresh(run)
+
+        return {
+            "id": run.id,
+            "display_name": run.display_name,
+        }
+
     except Exception:
         db.rollback()
         raise HTTPException(status_code=500, detail="Internal server error.")
