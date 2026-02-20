@@ -1,102 +1,141 @@
 from fastapi import APIRouter, HTTPException, Depends
 from sqlalchemy.orm import Session
 from edge_lab.persistence.database import get_db
-from edge_lab.persistence.models import Variant, Run
+from edge_lab.persistence.models import Variant, Run, Strategy, User
+from edge_lab.security.auth import get_current_user
 from edge_lab.analytics.variant_analyzer import VariantAnalyzer
 import uuid
 
 router = APIRouter(tags=["Variants"])
 
+
+# ==========================================================
+# HELPER — OWNERSHIP CHECK
+# ==========================================================
+
+def get_owned_variant(
+    variant_id: str,
+    db: Session,
+    current_user: User,
+) -> Variant:
+    variant = (
+        db.query(Variant)
+        .filter(
+            Variant.id == uuid.UUID(variant_id),
+            Variant.user_id == current_user.id,
+        )
+        .first()
+    )
+
+    if not variant:
+        raise HTTPException(status_code=404, detail="Variant not found.")
+
+    return variant
+
+
+# ==========================================================
+# LIST VARIANTS (ISOLATED)
+# ==========================================================
+
 @router.get("/")
-def list_variants(db: Session = Depends(get_db)):
-    try:
-        variants = db.query(Variant).all()
+def list_variants(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    variants = (
+        db.query(Variant)
+        .filter(Variant.user_id == current_user.id)
+        .all()
+    )
 
-        if not variants:
-            raise ValueError("No variants found.")
+    return [
+        {
+            "id": v.id,
+            "strategy_id": v.strategy_id,
+            "display_name": v.display_name or v.name,
+            "name": v.name,
+            "version": v.version_number,
+        }
+        for v in variants
+    ]
 
-        return [
-            {
-                "id": v.id,
-                "strategy_id": v.strategy_id,
-                "display_name": v.display_name or v.name,
-                "name": v.name,
-                "version": v.version_number,
-            }
-            for v in variants
-        ]
 
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
-    except Exception:
-        raise HTTPException(status_code=500, detail="Internal server error.")
-
+# ==========================================================
+# GET VARIANT (ISOLATED)
+# ==========================================================
 
 @router.get("/{variant_id}")
-def get_variant(variant_id: str, db: Session = Depends(get_db)):
-    try:
-        variant = db.query(Variant).filter_by(id=uuid.UUID(variant_id)).first()
+def get_variant(
+    variant_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    variant = get_owned_variant(variant_id, db, current_user)
 
-        if not variant:
-            raise ValueError("Variant not found.")
+    return {
+        "id": variant.id,
+        "name": variant.name,
+        "display_name": variant.display_name or variant.name,
+        "version": variant.version_number,
+        "strategy_id": variant.strategy_id,
+    }
 
-        return {
-            "id": variant.id,
-            "name": variant.name,
-            "display_name": variant.display_name or variant.name,
-            "version": variant.version_number,
-            "strategy_id": variant.strategy_id,
-        }
 
-    except ValueError as e:
-        raise HTTPException(status_code=404, detail=str(e))
-    except Exception:
-        raise HTTPException(status_code=500, detail="Internal server error.")
-
+# ==========================================================
+# LIST RUNS FOR VARIANT (ISOLATED)
+# ==========================================================
 
 @router.get("/{variant_id}/runs")
-def list_runs_for_variant(variant_id: str, db: Session = Depends(get_db)):
-    try:
-        runs = db.query(Run).filter_by(
-            variant_id=uuid.UUID(variant_id)
-        ).all()
+def list_runs_for_variant(
+    variant_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    variant = get_owned_variant(variant_id, db, current_user)
 
-        if not runs:
-            raise ValueError("No runs found for this variant.")
+    runs = (
+        db.query(Run)
+        .filter(
+            Run.variant_id == variant.id,
+            Run.user_id == current_user.id,
+        )
+        .all()
+    )
 
-        return [
-            {
-                "id": r.id,
-                "display_name": r.display_name,
-                "status": r.status,
-                "run_type": r.run_type,
-                "initial_capital": r.initial_capital,
-                "trade_limit": r.trade_limit,
-            }
-            for r in runs
-        ]
+    return [
+        {
+            "id": r.id,
+            "display_name": r.display_name,
+            "status": r.status,
+            "run_type": r.run_type,
+            "initial_capital": r.initial_capital,
+            "trade_limit": r.trade_limit,
+        }
+        for r in runs
+    ]
 
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
-    except Exception:
-        raise HTTPException(status_code=500, detail="Internal server error.")
 
+# ==========================================================
+# ANALYZE VARIANT (ISOLATED)
+# ==========================================================
 
 @router.get("/{variant_id}/analysis")
-def analyze_variant(variant_id: str, db: Session = Depends(get_db)):
-    try:
-        result = VariantAnalyzer.analyze_variant(
-            db=db,
-            variant_id=uuid.UUID(variant_id),
-        )
+def analyze_variant(
+    variant_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    get_owned_variant(variant_id, db, current_user)
 
-        return result
+    return VariantAnalyzer.analyze_variant(
+        db=db,
+        variant_id=uuid.UUID(variant_id),
+    )
 
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
-    except Exception:
-        raise HTTPException(status_code=500, detail="Internal server error.")
 
+# ==========================================================
+# CREATE VARIANT (ISOLATED)
+# ==========================================================
 
 @router.post("/")
 def create_variant(
@@ -107,26 +146,36 @@ def create_variant(
     parameter_hash: str,
     parameter_json: str,
     db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
-    try:
-        variant = Variant(
-            strategy_id=uuid.UUID(strategy_id),
-            name=name,
-            display_name=display_name,
-            version_number=version_number,
-            parameter_hash=parameter_hash,
-            parameter_json=parameter_json,
+    # ensure strategy belongs to user
+    strategy = (
+        db.query(Strategy)
+        .filter(
+            Strategy.id == uuid.UUID(strategy_id),
+            Strategy.user_id == current_user.id,
         )
+        .first()
+    )
 
-        db.add(variant)
-        db.commit()
-        db.refresh(variant)
+    if not strategy:
+        raise HTTPException(status_code=404, detail="Strategy not found.")
 
-        return {
-            "id": variant.id,
-            "display_name": variant.display_name,
-        }
+    variant = Variant(
+        user_id=current_user.id,
+        strategy_id=strategy.id,
+        name=name,
+        display_name=display_name,
+        version_number=version_number,
+        parameter_hash=parameter_hash,
+        parameter_json=parameter_json,
+    )
 
-    except Exception:
-        db.rollback()
-        raise HTTPException(status_code=500, detail="Internal server error.")
+    db.add(variant)
+    db.commit()
+    db.refresh(variant)
+
+    return {
+        "id": variant.id,
+        "display_name": variant.display_name,
+    }

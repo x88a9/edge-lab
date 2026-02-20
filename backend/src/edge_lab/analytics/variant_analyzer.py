@@ -8,11 +8,18 @@ from edge_lab.persistence.models import Run, RunMetrics, VariantMetrics
 class VariantAnalyzer:
 
     @staticmethod
-    def analyze_variant(db: Session, variant_id):
+    def analyze_variant(
+        db: Session,
+        variant_id,
+        user_id,
+    ):
 
         runs = (
             db.query(Run)
-            .filter(Run.variant_id == variant_id)
+            .filter(
+                Run.variant_id == variant_id,
+                Run.user_id == user_id,
+            )
             .all()
         )
 
@@ -23,7 +30,10 @@ class VariantAnalyzer:
 
         metrics = (
             db.query(RunMetrics)
-            .filter(RunMetrics.run_id.in_(run_ids))
+            .filter(
+                RunMetrics.run_id.in_(run_ids),
+                RunMetrics.user_id == user_id,
+            )
             .all()
         )
 
@@ -48,7 +58,6 @@ class VariantAnalyzer:
         mean_volatility = float(np.mean(volatilities))
         worst_max_dd = float(np.min(max_dds))
 
-        # --- Advanced Statistics ---
         if n > 1 and std_expectancy > 0:
             standard_error = std_expectancy / np.sqrt(n)
 
@@ -59,11 +68,9 @@ class VariantAnalyzer:
             ci_lower = float(mean_expectancy - t_critical * standard_error)
             ci_upper = float(mean_expectancy + t_critical * standard_error)
 
-            # Probability edge > 0
             prob_edge_positive = float(
                 1 - stats.t.cdf((0 - mean_expectancy) / standard_error, df)
             )
-
         else:
             t_stat = None
             ci_lower = None
@@ -71,6 +78,7 @@ class VariantAnalyzer:
             prob_edge_positive = None
 
         snapshot = VariantMetrics(
+            user_id=user_id,
             variant_id=variant_id,
             total_runs=n,
             mean_expectancy=mean_expectancy,
@@ -80,7 +88,7 @@ class VariantAnalyzer:
             mean_win_rate=mean_win_rate,
             mean_volatility=mean_volatility,
             worst_max_dd=worst_max_dd,
-            stability_score=None,  # deprecated
+            stability_score=None,
         )
 
         db.add(snapshot)

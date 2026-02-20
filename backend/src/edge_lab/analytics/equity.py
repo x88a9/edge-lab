@@ -7,10 +7,17 @@ from edge_lab.persistence.models import Trade
 class EquityBuilder:
 
     @staticmethod
-    def build_equity_series(db: Session, run_id):
+    def build_equity_series(
+        db: Session,
+        run_id,
+        user_id,
+    ):
         trades = (
             db.query(Trade)
-            .filter(Trade.run_id == run_id)
+            .filter(
+                Trade.run_id == run_id,
+                Trade.user_id == user_id,
+            )
             .order_by(Trade.created_at)
             .all()
         )
@@ -21,7 +28,6 @@ class EquityBuilder:
         log_returns = np.array([t.log_return for t in trades])
 
         cumulative_log = np.cumsum(log_returns)
-
         equity = np.exp(cumulative_log)
 
         df = pd.DataFrame({
@@ -34,4 +40,3 @@ class EquityBuilder:
         df["drawdown"] = df["equity"] / df["peak"] - 1
 
         return df
-

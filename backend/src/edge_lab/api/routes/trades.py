@@ -1,15 +1,64 @@
 from fastapi import APIRouter, HTTPException, Depends
 from sqlalchemy.orm import Session
 from edge_lab.persistence.database import get_db
-from edge_lab.persistence.models import Trade, Run
+from edge_lab.persistence.models import Trade, Run, User
+from edge_lab.security.auth import get_current_user
 import uuid
 import math
 from datetime import datetime
 from pydantic import BaseModel
-from datetime import datetime
 from typing import Optional
 
 router = APIRouter(tags=["Trades"])
+
+
+# ==========================================================
+# HELPER — OWNERSHIP CHECKS
+# ==========================================================
+
+def get_owned_run(
+    run_id: str,
+    db: Session,
+    current_user: User,
+) -> Run:
+    run = (
+        db.query(Run)
+        .filter(
+            Run.id == uuid.UUID(run_id),
+            Run.user_id == current_user.id,
+        )
+        .first()
+    )
+
+    if not run:
+        raise HTTPException(status_code=404, detail="Run not found.")
+
+    return run
+
+
+def get_owned_trade(
+    trade_id: str,
+    db: Session,
+    current_user: User,
+) -> Trade:
+    trade = (
+        db.query(Trade)
+        .filter(
+            Trade.id == uuid.UUID(trade_id),
+            Trade.user_id == current_user.id,
+        )
+        .first()
+    )
+
+    if not trade:
+        raise HTTPException(status_code=404, detail="Trade not found.")
+
+    return trade
+
+
+# ==========================================================
+# SCHEMA
+# ==========================================================
 
 class TradeCreate(BaseModel):
     run_id: str
@@ -21,55 +70,61 @@ class TradeCreate(BaseModel):
     timestamp: Optional[datetime] = None
     timeframe: Optional[str] = None
 
+
+# ==========================================================
+# CREATE TRADE (ISOLATED)
+# ==========================================================
+
 @router.post("/")
-def create_trade(trade_data: TradeCreate, db: Session = Depends(get_db)):
-    try:
-        run = db.query(Run).filter_by(id=uuid.UUID(trade_data.run_id)).first()
-        if not run:
-            raise HTTPException(status_code=404, detail="Run not found.")
+def create_trade(
+    trade_data: TradeCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    run = get_owned_run(trade_data.run_id, db, current_user)
 
-        entry = trade_data.entry_price
-        exit_ = trade_data.exit_price
-        stop = trade_data.stop_loss
-        direction = trade_data.direction.lower()
+    entry = trade_data.entry_price
+    exit_ = trade_data.exit_price
+    stop = trade_data.stop_loss
+    direction = trade_data.direction.lower()
 
-        if direction == "long":
-            raw_return = (exit_ - entry) / entry
-            r_multiple = (exit_ - entry) / (entry - stop)
-        else:
-            raw_return = (entry - exit_) / entry
-            r_multiple = (entry - exit_) / (stop - entry)
+    if direction == "long":
+        raw_return = (exit_ - entry) / entry
+        r_multiple = (exit_ - entry) / (entry - stop)
+    else:
+        raw_return = (entry - exit_) / entry
+        r_multiple = (entry - exit_) / (stop - entry)
 
-        log_return = math.log(1 + raw_return)
-        is_win = r_multiple > 0
+    log_return = math.log(1 + raw_return)
+    is_win = r_multiple > 0
 
-        trade = Trade(
-            run_id=uuid.UUID(trade_data.run_id),
-            entry_price=entry,
-            exit_price=exit_,
-            stop_loss=stop,
-            size=trade_data.size,
-            direction=direction,
-            timestamp=trade_data.timestamp,
-            timeframe=trade_data.timeframe,
-            raw_return=raw_return,
-            log_return=log_return,
-            r_multiple=r_multiple,
-            is_win=is_win,
-        )
+    trade = Trade(
+        user_id=current_user.id,
+        run_id=run.id,
+        entry_price=entry,
+        exit_price=exit_,
+        stop_loss=stop,
+        size=trade_data.size,
+        direction=direction,
+        timestamp=trade_data.timestamp,
+        timeframe=trade_data.timeframe,
+        raw_return=raw_return,
+        log_return=log_return,
+        r_multiple=r_multiple,
+        is_win=is_win,
+    )
 
-        db.add(trade)
-        db.commit()
-        db.refresh(trade)
+    db.add(trade)
+    db.commit()
+    db.refresh(trade)
 
-        return {"id": trade.id, "r_multiple": r_multiple}
-
-    except Exception:
-        db.rollback()
-        raise HTTPException(status_code=500, detail="Internal server error.")
+    return {"id": trade.id, "r_multiple": r_multiple}
 
 
-# 🔹 Update Trade
+# ==========================================================
+# UPDATE TRADE (ISOLATED)
+# ==========================================================
+
 @router.put("/{trade_id}")
 def update_trade(
     trade_id: str,
@@ -81,127 +136,117 @@ def update_trade(
     timestamp: datetime,
     timeframe: str | None = None,
     db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
-    try:
-        trade = db.query(Trade).filter_by(id=uuid.UUID(trade_id)).first()
-        if not trade:
-            raise ValueError("Trade not found.")
+    trade = get_owned_trade(trade_id, db, current_user)
 
-        risk = abs(entry_price - stop_loss)
+    risk = abs(entry_price - stop_loss)
+    if risk == 0:
+        raise HTTPException(status_code=400, detail="Stop loss cannot equal entry.")
 
-        if risk == 0:
-            raise ValueError("Stop loss cannot equal entry.")
+    if direction == "long":
+        r_multiple = (exit_price - entry_price) / risk
+        raw_return = (exit_price - entry_price) / entry_price
+    else:
+        r_multiple = (entry_price - exit_price) / risk
+        raw_return = (entry_price - exit_price) / entry_price
 
-        if direction == "long":
-            r_multiple = (exit_price - entry_price) / risk
-            raw_return = (exit_price - entry_price) / entry_price
-        else:
-            r_multiple = (entry_price - exit_price) / risk
-            raw_return = (entry_price - exit_price) / entry_price
+    trade.entry_price = entry_price
+    trade.exit_price = exit_price
+    trade.stop_loss = stop_loss
+    trade.size = size
+    trade.direction = direction
+    trade.timestamp = timestamp
+    trade.timeframe = timeframe
+    trade.raw_return = raw_return
+    trade.log_return = math.log(1 + raw_return)
+    trade.r_multiple = r_multiple
+    trade.is_win = r_multiple > 0
 
-        trade.entry_price = entry_price
-        trade.exit_price = exit_price
-        trade.stop_loss = stop_loss
-        trade.size = size
-        trade.direction = direction
-        trade.timestamp = timestamp
-        trade.timeframe = timeframe
-        trade.raw_return = raw_return
-        trade.log_return = math.log(1 + raw_return)
-        trade.r_multiple = r_multiple
-        trade.is_win = r_multiple > 0
+    db.commit()
 
-        db.commit()
-
-        return {"status": "updated"}
-
-    except ValueError as e:
-        raise HTTPException(status_code=404, detail=str(e))
-    except Exception:
-        db.rollback()
-        raise HTTPException(status_code=500, detail="Internal server error.")
+    return {"status": "updated"}
 
 
-# 🔹 Delete Trade
+# ==========================================================
+# DELETE TRADE (ISOLATED)
+# ==========================================================
+
 @router.delete("/{trade_id}")
-def delete_trade(trade_id: str, db: Session = Depends(get_db)):
-    try:
-        trade = db.query(Trade).filter_by(id=uuid.UUID(trade_id)).first()
-        if not trade:
-            raise ValueError("Trade not found.")
+def delete_trade(
+    trade_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    trade = get_owned_trade(trade_id, db, current_user)
 
-        db.delete(trade)
-        db.commit()
+    db.delete(trade)
+    db.commit()
 
-        return {"status": "deleted"}
-
-    except ValueError as e:
-        raise HTTPException(status_code=404, detail=str(e))
-    except Exception:
-        db.rollback()
-        raise HTTPException(status_code=500, detail="Internal server error.")
+    return {"status": "deleted"}
 
 
-# 🔹 List Trades
+# ==========================================================
+# LIST TRADES (ISOLATED)
+# ==========================================================
+
 @router.get("/")
-def list_trades(db: Session = Depends(get_db)):
-    try:
-        trades = db.query(Trade).all()
+def list_trades(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    trades = (
+        db.query(Trade)
+        .filter(Trade.user_id == current_user.id)
+        .all()
+    )
 
-        if not trades:
-            raise ValueError("No trades found.")
-
-        return [
-            {
-                "id": t.id,
-                "run_id": t.run_id,
-                "entry_price": t.entry_price,
-                "exit_price": t.exit_price,
-                "stop_loss": t.stop_loss,
-                "size": t.size,
-                "direction": t.direction,
-                "timestamp": t.timestamp,
-                "timeframe": t.timeframe,
-                "r_multiple": t.r_multiple,
-                "is_win": t.is_win,
-                "raw_return": t.raw_return,
-                "log_return": t.log_return,
-                "created_at": t.created_at,
-            }
-            for t in trades
-        ]
-
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
-
-
-# 🔹 Get Single Trade
-@router.get("/{trade_id}")
-def get_trade(trade_id: str, db: Session = Depends(get_db)):
-    try:
-        trade = db.query(Trade).filter_by(
-            id=uuid.UUID(trade_id)
-        ).first()
-
-        if not trade:
-            raise ValueError("Trade not found.")
-
-        return {
-            "id": trade.id,
-            "run_id": trade.run_id,
-            "entry_price": trade.entry_price,
-            "exit_price": trade.exit_price,
-            "stop_loss": trade.stop_loss,
-            "size": trade.size,
-            "direction": trade.direction,
-            "timestamp": trade.timestamp,
-            "timeframe": trade.timeframe,
-            "r_multiple": trade.r_multiple,
-            "is_win": trade.is_win,
-            "raw_return": trade.raw_return,
-            "log_return": trade.log_return,
-            "created_at": trade.created_at,
+    return [
+        {
+            "id": t.id,
+            "run_id": t.run_id,
+            "entry_price": t.entry_price,
+            "exit_price": t.exit_price,
+            "stop_loss": t.stop_loss,
+            "size": t.size,
+            "direction": t.direction,
+            "timestamp": t.timestamp,
+            "timeframe": t.timeframe,
+            "r_multiple": t.r_multiple,
+            "is_win": t.is_win,
+            "raw_return": t.raw_return,
+            "log_return": t.log_return,
+            "created_at": t.created_at,
         }
+        for t in trades
+    ]
 
-    except ValueError as e:
-        raise HTTPException(status_code=404, detail=str(e))
+
+# ==========================================================
+# GET SINGLE TRADE (ISOLATED)
+# ==========================================================
+
+@router.get("/{trade_id}")
+def get_trade(
+    trade_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    trade = get_owned_trade(trade_id, db, current_user)
+
+    return {
+        "id": trade.id,
+        "run_id": trade.run_id,
+        "entry_price": trade.entry_price,
+        "exit_price": trade.exit_price,
+        "stop_loss": trade.stop_loss,
+        "size": trade.size,
+        "direction": trade.direction,
+        "timestamp": trade.timestamp,
+        "timeframe": trade.timeframe,
+        "r_multiple": trade.r_multiple,
+        "is_win": trade.is_win,
+        "raw_return": trade.raw_return,
+        "log_return": trade.log_return,
+        "created_at": trade.created_at,
+    }

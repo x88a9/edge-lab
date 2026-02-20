@@ -9,11 +9,15 @@ class MonteCarloEngine:
     def bootstrap_run(
         db: Session,
         run_id,
+        user_id,
         simulations: int = 10000,
     ):
         trades = (
             db.query(Trade)
-            .filter(Trade.run_id == run_id)
+            .filter(
+                Trade.run_id == run_id,
+                Trade.user_id == user_id,
+            )
             .all()
         )
 
@@ -50,7 +54,6 @@ class MonteCarloEngine:
             "median_final_return": float(np.median(final_returns)),
             "p5_final_return": float(np.percentile(final_returns, 5)),
             "p95_final_return": float(np.percentile(final_returns, 95)),
-
             "mean_max_dd": float(np.mean(max_drawdowns)),
             "worst_case_dd": float(np.min(max_drawdowns)),
             "p95_dd": float(np.percentile(max_drawdowns, 95)),

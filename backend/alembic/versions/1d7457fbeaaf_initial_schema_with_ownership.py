@@ -1,8 +1,8 @@
-"""fresh initial schema
+"""initial schema with ownership
 
-Revision ID: 5eb9f71bd3fe
+Revision ID: 1d7457fbeaaf
 Revises: 
-Create Date: 2026-02-19 17:50:29.468174
+Create Date: 2026-02-20 16:46:59.352940
 
 """
 from typing import Sequence, Union
@@ -12,7 +12,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision: str = '5eb9f71bd3fe'
+revision: str = '1d7457fbeaaf'
 down_revision: Union[str, Sequence[str], None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
@@ -24,14 +24,18 @@ def upgrade() -> None:
     op.create_table('users',
     sa.Column('id', sa.UUID(), nullable=False),
     sa.Column('email', sa.String(length=255), nullable=False),
+    sa.Column('password_hash', sa.String(length=255), nullable=False),
+    sa.Column('is_admin', sa.Boolean(), nullable=False),
+    sa.Column('is_active', sa.Boolean(), nullable=False),
     sa.Column('created_at', sa.DateTime(), nullable=False),
-    sa.PrimaryKeyConstraint('id'),
-    sa.UniqueConstraint('email')
+    sa.PrimaryKeyConstraint('id')
     )
+    op.create_index(op.f('ix_users_email'), 'users', ['email'], unique=True)
     op.create_table('strategies',
     sa.Column('id', sa.UUID(), nullable=False),
     sa.Column('user_id', sa.UUID(), nullable=False),
     sa.Column('name', sa.String(length=255), nullable=False),
+    sa.Column('display_name', sa.String(length=255), nullable=True),
     sa.Column('description', sa.Text(), nullable=True),
     sa.Column('asset', sa.String(length=100), nullable=False),
     sa.Column('created_at', sa.DateTime(), nullable=False),
@@ -40,30 +44,37 @@ def upgrade() -> None:
     )
     op.create_table('variants',
     sa.Column('id', sa.UUID(), nullable=False),
+    sa.Column('user_id', sa.UUID(), nullable=False),
     sa.Column('strategy_id', sa.UUID(), nullable=False),
     sa.Column('parent_variant_id', sa.UUID(), nullable=True),
     sa.Column('name', sa.String(length=255), nullable=False),
+    sa.Column('display_name', sa.String(length=255), nullable=True),
     sa.Column('version_number', sa.Integer(), nullable=False),
     sa.Column('parameter_hash', sa.String(length=255), nullable=False),
     sa.Column('parameter_json', sa.Text(), nullable=False),
     sa.Column('created_at', sa.DateTime(), nullable=False),
     sa.ForeignKeyConstraint(['parent_variant_id'], ['variants.id'], ),
     sa.ForeignKeyConstraint(['strategy_id'], ['strategies.id'], ),
+    sa.ForeignKeyConstraint(['user_id'], ['users.id'], ),
     sa.PrimaryKeyConstraint('id')
     )
     op.create_table('runs',
     sa.Column('id', sa.UUID(), nullable=False),
+    sa.Column('user_id', sa.UUID(), nullable=False),
     sa.Column('variant_id', sa.UUID(), nullable=False),
     sa.Column('run_type', sa.String(length=50), nullable=False),
     sa.Column('status', sa.String(length=20), nullable=False),
+    sa.Column('display_name', sa.String(length=255), nullable=True),
     sa.Column('trade_limit', sa.Integer(), nullable=False),
     sa.Column('initial_capital', sa.Float(), nullable=False),
     sa.Column('created_at', sa.DateTime(), nullable=False),
+    sa.ForeignKeyConstraint(['user_id'], ['users.id'], ),
     sa.ForeignKeyConstraint(['variant_id'], ['variants.id'], ),
     sa.PrimaryKeyConstraint('id')
     )
     op.create_table('variant_metrics',
     sa.Column('id', sa.UUID(), nullable=False),
+    sa.Column('user_id', sa.UUID(), nullable=False),
     sa.Column('variant_id', sa.UUID(), nullable=False),
     sa.Column('total_runs', sa.Integer(), nullable=False),
     sa.Column('mean_expectancy', sa.Float(), nullable=False),
@@ -75,12 +86,14 @@ def upgrade() -> None:
     sa.Column('worst_max_dd', sa.Float(), nullable=False),
     sa.Column('stability_score', sa.Float(), nullable=False),
     sa.Column('created_at', sa.DateTime(), nullable=False),
+    sa.ForeignKeyConstraint(['user_id'], ['users.id'], ),
     sa.ForeignKeyConstraint(['variant_id'], ['variants.id'], ),
     sa.PrimaryKeyConstraint('id'),
     sa.UniqueConstraint('variant_id')
     )
     op.create_table('run_metrics',
     sa.Column('id', sa.UUID(), nullable=False),
+    sa.Column('user_id', sa.UUID(), nullable=False),
     sa.Column('run_id', sa.UUID(), nullable=False),
     sa.Column('expectancy', sa.Float(), nullable=False),
     sa.Column('win_rate', sa.Float(), nullable=False),
@@ -90,20 +103,28 @@ def upgrade() -> None:
     sa.Column('total_return', sa.Float(), nullable=False),
     sa.Column('created_at', sa.DateTime(), nullable=False),
     sa.ForeignKeyConstraint(['run_id'], ['runs.id'], ),
+    sa.ForeignKeyConstraint(['user_id'], ['users.id'], ),
     sa.PrimaryKeyConstraint('id'),
     sa.UniqueConstraint('run_id')
     )
     op.create_table('trades',
     sa.Column('id', sa.UUID(), nullable=False),
+    sa.Column('user_id', sa.UUID(), nullable=False),
     sa.Column('run_id', sa.UUID(), nullable=False),
     sa.Column('entry_price', sa.Float(), nullable=False),
     sa.Column('exit_price', sa.Float(), nullable=False),
+    sa.Column('stop_loss', sa.Float(), nullable=False),
     sa.Column('size', sa.Float(), nullable=False),
     sa.Column('direction', sa.String(length=10), nullable=False),
+    sa.Column('timestamp', sa.DateTime(), nullable=False),
+    sa.Column('timeframe', sa.String(length=10), nullable=True),
     sa.Column('raw_return', sa.Float(), nullable=False),
     sa.Column('log_return', sa.Float(), nullable=False),
+    sa.Column('r_multiple', sa.Float(), nullable=False),
+    sa.Column('is_win', sa.Boolean(), nullable=False),
     sa.Column('created_at', sa.DateTime(), nullable=False),
     sa.ForeignKeyConstraint(['run_id'], ['runs.id'], ),
+    sa.ForeignKeyConstraint(['user_id'], ['users.id'], ),
     sa.PrimaryKeyConstraint('id')
     )
     # ### end Alembic commands ###
@@ -118,5 +139,6 @@ def downgrade() -> None:
     op.drop_table('runs')
     op.drop_table('variants')
     op.drop_table('strategies')
+    op.drop_index(op.f('ix_users_email'), table_name='users')
     op.drop_table('users')
     # ### end Alembic commands ###

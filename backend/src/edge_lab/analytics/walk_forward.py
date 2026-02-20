@@ -10,33 +10,34 @@ class WalkForwardEngine:
     def run(
         db: Session,
         run_id,
+        user_id,
         train_size: int = 10,
         test_size: int = 10,
     ):
 
         trades = (
             db.query(Trade)
-            .filter(Trade.run_id == run_id)
+            .filter(
+                Trade.run_id == run_id,
+                Trade.user_id == user_id,
+            )
             .order_by(Trade.created_at)
             .all()
         )
 
+        if not trades:
+            return []
+
         train_size = int(len(trades) * 0.6)
         test_size = int(len(trades) * 0.4)
-        
+
         if len(trades) < train_size + test_size:
-            return {
-                "windows": [],
-                "stability": None,
-                "expectancy_range": None,
-                "volatility_range": None,
-            }
+            return []
 
         log_returns = np.array([t.log_return for t in trades])
         raw_returns = np.exp(log_returns) - 1
 
         results = []
-
         start = 0
 
         while start + train_size + test_size <= len(trades):
@@ -47,12 +48,12 @@ class WalkForwardEngine:
             train_expectancy = float(np.mean(train_slice))
             test_expectancy = float(np.mean(test_slice))
 
-            train_sharpe = float(MetricsEngine.sharpe(
-                np.log(1 + train_slice)
-            ))
-            test_sharpe = float(MetricsEngine.sharpe(
-                np.log(1 + test_slice)
-            ))
+            train_sharpe = float(
+                MetricsEngine.sharpe(np.log(1 + train_slice))
+            )
+            test_sharpe = float(
+                MetricsEngine.sharpe(np.log(1 + test_slice))
+            )
 
             results.append({
                 "train_expectancy": train_expectancy,

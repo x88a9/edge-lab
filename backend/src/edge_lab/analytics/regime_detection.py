@@ -10,16 +10,26 @@ class RegimeDetectionEngine:
     def detect(
         db: Session,
         run_id,
+        user_id,
         window: int = 20,
         clusters: int = 2,
     ):
 
         trades = (
             db.query(Trade)
-            .filter(Trade.run_id == run_id)
+            .filter(
+                Trade.run_id == run_id,
+                Trade.user_id == user_id,
+            )
             .order_by(Trade.created_at)
             .all()
         )
+
+        if not trades or len(trades) <= window:
+            return {
+                "labels": [],
+                "centroids": [],
+            }
 
         log_returns = np.array([t.log_return for t in trades])
 
@@ -27,11 +37,17 @@ class RegimeDetectionEngine:
         rolling_mean = []
 
         for i in range(window, len(log_returns)):
-            slice_ = log_returns[i-window:i]
+            slice_ = log_returns[i - window:i]
             rolling_vol.append(np.std(slice_))
             rolling_mean.append(np.mean(slice_))
 
         X = np.column_stack((rolling_vol, rolling_mean))
+
+        if len(X) < clusters:
+            return {
+                "labels": [],
+                "centroids": [],
+            }
 
         kmeans = KMeans(n_clusters=clusters, random_state=42)
         labels = kmeans.fit_predict(X)

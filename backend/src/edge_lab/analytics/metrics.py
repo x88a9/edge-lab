@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 from edge_lab.persistence.models import Trade
 import uuid
 
+
 class MetricsEngine:
 
     @staticmethod
@@ -38,11 +39,18 @@ class MetricsEngine:
         return arithmetic_mean - geometric_mean
 
     @staticmethod
-    def generate_for_run(db: Session, run_id: uuid.UUID):
+    def generate_for_run(
+        db: Session,
+        run_id: uuid.UUID,
+        user_id: uuid.UUID,
+    ):
 
         trades = (
             db.query(Trade)
-            .filter(Trade.run_id == run_id)
+            .filter(
+                Trade.run_id == run_id,
+                Trade.user_id == user_id,
+            )
             .order_by(Trade.timestamp.asc())
             .all()
         )
@@ -69,18 +77,14 @@ class MetricsEngine:
 
         expectancy = win_rate * avg_win_R + (1 - win_rate) * avg_loss_R
 
-        # R-volatility
         volatility_R = np.std(r_values)
 
-        # Kelly
         if avg_loss_R != 0:
             b = avg_win_R / abs(avg_loss_R)
             kelly_f = (win_rate * b - (1 - win_rate)) / b
         else:
             kelly_f = 0
 
-        # Log growth (f=1)
-       # Safe log growth (exclude r <= -1)
         safe_r = r_values[r_values > -1]
 
         if len(safe_r) > 0:
@@ -88,12 +92,11 @@ class MetricsEngine:
         else:
             log_growth = 0.0
 
-
-        # Max drawdown (R cumulative)
         cumulative = np.cumsum(r_values)
         peak = np.maximum.accumulate(cumulative)
         drawdown = cumulative - peak
         max_dd = np.min(drawdown)
+
         def safe(x):
             if np.isnan(x) or np.isinf(x):
                 return 0.0

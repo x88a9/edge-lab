@@ -9,19 +9,23 @@ class RiskOfRuinEngine:
     def simulate(
         db: Session,
         run_id,
+        user_id,
         simulations: int = 10000,
         position_fraction: float = 0.01,
         ruin_threshold: float = 0.7,
         max_trades: int = 500,
     ):
         """
-        position_fraction: fraction of capital risked per trade (e.g. 0.01 = 1%)
-        ruin_threshold: capital level considered ruin (e.g. 0.7 = -30%)
+        position_fraction: fraction of capital risked per trade
+        ruin_threshold: capital level considered ruin
         """
 
         trades = (
             db.query(Trade)
-            .filter(Trade.run_id == run_id)
+            .filter(
+                Trade.run_id == run_id,
+                Trade.user_id == user_id,
+            )
             .all()
         )
 

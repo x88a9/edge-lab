@@ -16,6 +16,7 @@ class RunService:
     @staticmethod
     def create_run(
         db: Session,
+        user_id: uuid.UUID,
         variant_id: uuid.UUID,
         run_type: str,
         initial_capital: float,
@@ -23,6 +24,7 @@ class RunService:
     ) -> Run:
 
         run = Run(
+            user_id=user_id,
             variant_id=variant_id,
             run_type=run_type,
             initial_capital=initial_capital,
@@ -40,6 +42,7 @@ class RunService:
     @staticmethod
     def add_trade(
         db: Session,
+        user_id: uuid.UUID,
         run_id: uuid.UUID,
         entry_price: float,
         exit_price: float,
@@ -47,8 +50,14 @@ class RunService:
         direction: str,
     ) -> Trade:
 
-
-        run = db.query(Run).filter(Run.id == run_id).first()
+        run = (
+            db.query(Run)
+            .filter(
+                Run.id == run_id,
+                Run.user_id == user_id,
+            )
+            .first()
+        )
 
         if not run:
             raise ValueError("Run not found.")
@@ -56,7 +65,14 @@ class RunService:
         if run.status != "open":
             raise ValueError("Cannot add trade to closed run.")
 
-        trade_count = db.query(Trade).filter(Trade.run_id == run_id).count()
+        trade_count = (
+            db.query(Trade)
+            .filter(
+                Trade.run_id == run_id,
+                Trade.user_id == user_id,
+            )
+            .count()
+        )
 
         if trade_count >= run.trade_limit:
             raise ValueError("Trade limit reached for this run.")
@@ -70,13 +86,13 @@ class RunService:
             else (entry_price - exit_price) / entry_price
         )
 
-        # Guard against invalid values
         if raw_return <= -1:
             raise ValueError("Return <= -100% is not valid.")
 
         log_return = math.log(1 + raw_return)
 
         trade = Trade(
+            user_id=user_id,
             run_id=run_id,
             entry_price=entry_price,
             exit_price=exit_price,
@@ -96,23 +112,41 @@ class RunService:
     # CLOSE RUN
     # -----------------------------
     @staticmethod
-    def close_run(db: Session, run_id: uuid.UUID) -> RunMetrics:
+    def close_run(
+        db: Session,
+        user_id: uuid.UUID,
+        run_id: uuid.UUID,
+    ) -> RunMetrics:
 
-        run = db.query(Run).filter(Run.id == run_id).first()
+        run = (
+            db.query(Run)
+            .filter(
+                Run.id == run_id,
+                Run.user_id == user_id,
+            )
+            .first()
+        )
 
         if not run:
             raise ValueError("Run not found.")
 
         existing_snapshot = (
             db.query(RunMetrics)
-            .filter(RunMetrics.run_id == run_id)
+            .filter(
+                RunMetrics.run_id == run_id,
+                RunMetrics.user_id == user_id,
+            )
             .first()
         )
 
         if existing_snapshot:
             return existing_snapshot
 
-        df = EquityBuilder.build_equity_series(db, run_id)
+        df = EquityBuilder.build_equity_series(
+            db=db,
+            run_id=run_id,
+            user_id=user_id,
+        )
 
         log_returns = df["log_return"].values
         raw_returns = np.exp(log_returns) - 1
@@ -126,6 +160,7 @@ class RunService:
         total_return = float(df["equity"].iloc[-1] - 1)
 
         snapshot = RunMetrics(
+            user_id=user_id,
             run_id=run_id,
             expectancy=expectancy,
             win_rate=win_rate,
