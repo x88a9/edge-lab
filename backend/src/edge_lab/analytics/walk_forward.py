@@ -10,8 +10,8 @@ class WalkForwardEngine:
     def run(
         db: Session,
         run_id,
-        train_size: int = 50,
-        test_size: int = 50,
+        train_size: int = 10,
+        test_size: int = 10,
     ):
 
         trades = (
@@ -21,8 +21,16 @@ class WalkForwardEngine:
             .all()
         )
 
+        train_size = int(len(trades) * 0.6)
+        test_size = int(len(trades) * 0.4)
+        
         if len(trades) < train_size + test_size:
-            raise ValueError("Not enough trades for walk-forward.")
+            return {
+                "windows": [],
+                "stability": None,
+                "expectancy_range": None,
+                "volatility_range": None,
+            }
 
         log_returns = np.array([t.log_return for t in trades])
         raw_returns = np.exp(log_returns) - 1

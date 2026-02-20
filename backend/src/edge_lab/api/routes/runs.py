@@ -10,6 +10,7 @@ from edge_lab.analytics.risk_of_ruin import RiskOfRuinEngine
 from edge_lab.analytics.walk_forward import WalkForwardEngine
 from edge_lab.analytics.regime_detection import RegimeDetectionEngine
 from edge_lab.analytics.kelly_simulation import KellySimulationEngine
+import numpy as np
 
 import uuid
 
@@ -62,18 +63,34 @@ def metrics(run_id: str):
 
 @router.get("/{run_id}/equity")
 def equity_curve(run_id: str):
-    db: Session = SessionLocal()
+    db = SessionLocal()
     try:
-        result = EquityBuilder.build_equity_series(
-            db=db,
-            run_id=uuid.UUID(run_id),
-        )
-        return result
+        trades = db.query(Trade).filter_by(
+            run_id=uuid.UUID(run_id)
+        ).all()
 
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
-    except Exception:
-        raise HTTPException(status_code=500, detail="Internal server error.")
+        if not trades:
+            return {"equity": [], "drawdown": []}
+
+        r_values = np.array([t.r_multiple for t in trades if t.r_multiple is not None])
+
+        risk_fraction = 0.01
+        equity = 1.0
+        equity_curve = []
+
+        for r in r_values:
+            equity *= (1 + r * risk_fraction)
+            equity_curve.append(float(equity))
+
+        equity_series = np.array(equity_curve)
+        peak = np.maximum.accumulate(equity_series)
+        drawdown = ((equity_series - peak) / peak).tolist()
+
+        return {
+            "equity": equity_curve,
+            "drawdown": drawdown
+        }
+
     finally:
         db.close()
 
@@ -87,8 +104,6 @@ def walk_forward(run_id: str):
         )
         return result
 
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
     except Exception:
         raise HTTPException(status_code=500, detail="Internal server error.")
     finally:
