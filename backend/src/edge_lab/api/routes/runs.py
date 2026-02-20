@@ -197,6 +197,7 @@ def get_run(run_id: str):
         raise HTTPException(status_code=500, detail="Internal server error.")
     finally:
         db.close()
+
 @router.get("/{run_id}/trades")
 def list_trades_for_run(run_id: str):
     db: Session = SessionLocal()
@@ -213,14 +214,20 @@ def list_trades_for_run(run_id: str):
                 "id": t.id,
                 "entry_price": t.entry_price,
                 "exit_price": t.exit_price,
+                "stop_loss": t.stop_loss,
                 "size": t.size,
                 "direction": t.direction,
+                "timestamp": t.timestamp,
+                "timeframe": t.timeframe,
+                "r_multiple": t.r_multiple,
+                "is_win": t.is_win,
                 "raw_return": t.raw_return,
                 "log_return": t.log_return,
                 "created_at": t.created_at,
             }
             for t in trades
         ]
+
 
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))

@@ -6,6 +6,7 @@ from sqlalchemy import (
     ForeignKey,
     Integer,
     Float,
+    Boolean,
     Text,
     Enum,
 )
@@ -151,18 +152,37 @@ class Trade(Base):
         nullable=False
     )
 
+    # Core Prices
     entry_price: Mapped[float] = mapped_column(Float, nullable=False)
     exit_price: Mapped[float] = mapped_column(Float, nullable=False)
+    stop_loss: Mapped[float] = mapped_column(Float, nullable=False)
+
     size: Mapped[float] = mapped_column(Float, nullable=False)
     direction: Mapped[str] = mapped_column(String(10), nullable=False)
 
+    # Meta
+    timestamp: Mapped[datetime] = mapped_column(
+        DateTime,
+        nullable=False
+    )
+
+    timeframe: Mapped[str] = mapped_column(
+        String(10),
+        nullable=True
+    )
+
+    # Calculated
     raw_return: Mapped[float] = mapped_column(Float, nullable=False)
     log_return: Mapped[float] = mapped_column(Float, nullable=False)
+
+    r_multiple: Mapped[float] = mapped_column(Float, nullable=False)
+    is_win: Mapped[bool] = mapped_column(Boolean, nullable=False)
 
     created_at: Mapped[datetime] = mapped_column(
         DateTime,
         default=datetime.utcnow
     )
+
 
     run = relationship("Run", back_populates="trades")
 
