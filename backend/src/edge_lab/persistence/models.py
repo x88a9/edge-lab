@@ -8,7 +8,6 @@ from sqlalchemy import (
     Float,
     Boolean,
     Text,
-    Enum,
 )
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -24,10 +23,34 @@ class User(Base):
         default=uuid.uuid4
     )
 
-    email: Mapped[str] = mapped_column(String(255), unique=True, nullable=False)
+    email: Mapped[str] = mapped_column(
+        String(255),
+        unique=True,
+        index=True,
+        nullable=False
+    )
+
+    password_hash: Mapped[str] = mapped_column(
+        String(255),
+        nullable=False
+    )
+
+    is_admin: Mapped[bool] = mapped_column(
+        Boolean,
+        default=False,
+        nullable=False
+    )
+
+    is_active: Mapped[bool] = mapped_column(
+        Boolean,
+        default=True,
+        nullable=False
+    )
+
     created_at: Mapped[datetime] = mapped_column(
         DateTime,
-        default=datetime.utcnow
+        default=datetime.utcnow,
+        nullable=False
     )
 
     strategies = relationship("Strategy", back_populates="user")
@@ -99,8 +122,6 @@ class Variant(Base):
     runs = relationship("Run", back_populates="variant")
 
 
-from sqlalchemy import Enum
-
 class Run(Base):
     __tablename__ = "runs"
 
@@ -123,6 +144,7 @@ class Run(Base):
         default="open",
         nullable=False
     )
+
     display_name: Mapped[str] = mapped_column(String(255), nullable=True)
     trade_limit: Mapped[int] = mapped_column(Integer, default=100)
     initial_capital: Mapped[float] = mapped_column(Float, nullable=False)
@@ -134,7 +156,6 @@ class Run(Base):
 
     variant = relationship("Variant", back_populates="runs")
     trades = relationship("Trade", back_populates="run")
-
 
 
 class Trade(Base):
@@ -152,7 +173,6 @@ class Trade(Base):
         nullable=False
     )
 
-    # Core Prices
     entry_price: Mapped[float] = mapped_column(Float, nullable=False)
     exit_price: Mapped[float] = mapped_column(Float, nullable=False)
     stop_loss: Mapped[float] = mapped_column(Float, nullable=False)
@@ -160,7 +180,6 @@ class Trade(Base):
     size: Mapped[float] = mapped_column(Float, nullable=False)
     direction: Mapped[str] = mapped_column(String(10), nullable=False)
 
-    # Meta
     timestamp: Mapped[datetime] = mapped_column(
         DateTime,
         nullable=False
@@ -171,7 +190,6 @@ class Trade(Base):
         nullable=True
     )
 
-    # Calculated
     raw_return: Mapped[float] = mapped_column(Float, nullable=False)
     log_return: Mapped[float] = mapped_column(Float, nullable=False)
 
@@ -183,8 +201,8 @@ class Trade(Base):
         default=datetime.utcnow
     )
 
-
     run = relationship("Run", back_populates="trades")
+
 
 class RunMetrics(Base):
     __tablename__ = "run_metrics"
@@ -213,7 +231,8 @@ class RunMetrics(Base):
         DateTime,
         default=datetime.utcnow
     )
-    
+
+
 class VariantMetrics(Base):
     __tablename__ = "variant_metrics"
 
@@ -242,7 +261,6 @@ class VariantMetrics(Base):
     mean_volatility: Mapped[float] = mapped_column(Float)
 
     worst_max_dd: Mapped[float] = mapped_column(Float)
-
     stability_score: Mapped[float] = mapped_column(Float)
 
     created_at: Mapped[datetime] = mapped_column(

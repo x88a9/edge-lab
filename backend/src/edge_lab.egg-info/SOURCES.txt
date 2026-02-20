@@ -17,10 +17,15 @@ src/edge_lab/analytics/walk_forward.py
 src/edge_lab/api/__init__.py
 src/edge_lab/api/main.py
 src/edge_lab/api/routes/__init__.py
+src/edge_lab/api/routes/auth.py
 src/edge_lab/api/routes/runs.py
+src/edge_lab/api/routes/systems.py
+src/edge_lab/api/routes/trades.py
 src/edge_lab/api/routes/variants.py
 src/edge_lab/cli/main.py
 src/edge_lab/persistence/database.py
 src/edge_lab/persistence/init_db.py
 src/edge_lab/persistence/models.py
+src/edge_lab/security/auth.py
+src/edge_lab/security/password.py
 src/edge_lab/services/run_service.py
