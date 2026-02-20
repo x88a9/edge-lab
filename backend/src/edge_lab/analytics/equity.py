@@ -35,35 +35,3 @@ class EquityBuilder:
 
         return df
 
-    @router.get("/{run_id}/equity")
-    def equity_curve(run_id: str):
-        db = SessionLocal()
-        try:
-            trades = db.query(Trade).filter_by(
-                run_id=uuid.UUID(run_id)
-            ).all()
-
-            if not trades:
-                return {"equity": [], "drawdown": []}
-
-            r_values = np.array([t.r_multiple for t in trades if t.r_multiple is not None])
-
-            risk_fraction = 0.01
-            equity = 1.0
-            equity_curve = []
-
-            for r in r_values:
-                equity *= (1 + r * risk_fraction)
-                equity_curve.append(float(equity))
-
-            equity_series = np.array(equity_curve)
-            peak = np.maximum.accumulate(equity_series)
-            drawdown = ((equity_series - peak) / peak).tolist()
-
-            return {
-                "equity": equity_curve,
-                "drawdown": drawdown
-            }
-
-        finally:
-            db.close()

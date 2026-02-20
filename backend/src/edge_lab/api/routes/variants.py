@@ -1,6 +1,6 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
 from sqlalchemy.orm import Session
-from edge_lab.persistence.database import SessionLocal
+from edge_lab.persistence.database import get_db
 from edge_lab.persistence.models import Variant, Run
 from edge_lab.analytics.variant_analyzer import VariantAnalyzer
 import uuid
@@ -8,8 +8,7 @@ import uuid
 router = APIRouter(tags=["Variants"])
 
 @router.get("/")
-def list_variants():
-    db: Session = SessionLocal()
+def list_variants(db: Session = Depends(get_db)):
     try:
         variants = db.query(Variant).all()
 
@@ -31,13 +30,10 @@ def list_variants():
         raise HTTPException(status_code=400, detail=str(e))
     except Exception:
         raise HTTPException(status_code=500, detail="Internal server error.")
-    finally:
-        db.close()
 
 
 @router.get("/{variant_id}")
-def get_variant(variant_id: str):
-    db: Session = SessionLocal()
+def get_variant(variant_id: str, db: Session = Depends(get_db)):
     try:
         variant = db.query(Variant).filter_by(id=uuid.UUID(variant_id)).first()
 
@@ -56,12 +52,10 @@ def get_variant(variant_id: str):
         raise HTTPException(status_code=404, detail=str(e))
     except Exception:
         raise HTTPException(status_code=500, detail="Internal server error.")
-    finally:
-        db.close()
+
 
 @router.get("/{variant_id}/runs")
-def list_runs_for_variant(variant_id: str):
-    db: Session = SessionLocal()
+def list_runs_for_variant(variant_id: str, db: Session = Depends(get_db)):
     try:
         runs = db.query(Run).filter_by(
             variant_id=uuid.UUID(variant_id)
@@ -86,12 +80,10 @@ def list_runs_for_variant(variant_id: str):
         raise HTTPException(status_code=400, detail=str(e))
     except Exception:
         raise HTTPException(status_code=500, detail="Internal server error.")
-    finally:
-        db.close()
+
 
 @router.get("/{variant_id}/analysis")
-def analyze_variant(variant_id: str):
-    db: Session = SessionLocal()
+def analyze_variant(variant_id: str, db: Session = Depends(get_db)):
     try:
         result = VariantAnalyzer.analyze_variant(
             db=db,
@@ -104,8 +96,7 @@ def analyze_variant(variant_id: str):
         raise HTTPException(status_code=400, detail=str(e))
     except Exception:
         raise HTTPException(status_code=500, detail="Internal server error.")
-    finally:
-        db.close()
+
 
 @router.post("/")
 def create_variant(
@@ -115,8 +106,8 @@ def create_variant(
     version_number: int,
     parameter_hash: str,
     parameter_json: str,
+    db: Session = Depends(get_db),
 ):
-    db: Session = SessionLocal()
     try:
         variant = Variant(
             strategy_id=uuid.UUID(strategy_id),
@@ -139,5 +130,3 @@ def create_variant(
     except Exception:
         db.rollback()
         raise HTTPException(status_code=500, detail="Internal server error.")
-    finally:
-        db.close()

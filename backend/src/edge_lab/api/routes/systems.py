@@ -1,6 +1,6 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
 from sqlalchemy.orm import Session
-from edge_lab.persistence.database import SessionLocal
+from edge_lab.persistence.database import get_db
 from edge_lab.persistence.models import Strategy, Variant
 import uuid
 
@@ -8,8 +8,7 @@ router = APIRouter(tags=["Systems"])
 
 
 @router.get("/")
-def list_systems():
-    db: Session = SessionLocal()
+def list_systems(db: Session = Depends(get_db)):
     try:
         systems = db.query(Strategy).all()
 
@@ -31,13 +30,10 @@ def list_systems():
         raise HTTPException(status_code=400, detail=str(e))
     except Exception:
         raise HTTPException(status_code=500, detail="Internal server error.")
-    finally:
-        db.close()
 
 
 @router.get("/{system_id}")
-def get_system(system_id: str):
-    db: Session = SessionLocal()
+def get_system(system_id: str, db: Session = Depends(get_db)):
     try:
         system = db.query(Strategy).filter_by(id=uuid.UUID(system_id)).first()
 
@@ -56,12 +52,10 @@ def get_system(system_id: str):
         raise HTTPException(status_code=404, detail=str(e))
     except Exception:
         raise HTTPException(status_code=500, detail="Internal server error.")
-    finally:
-        db.close()
+
 
 @router.get("/{system_id}/variants")
-def list_variants_for_system(system_id: str):
-    db: Session = SessionLocal()
+def list_variants_for_system(system_id: str, db: Session = Depends(get_db)):
     try:
         variants = db.query(Variant).filter_by(strategy_id=uuid.UUID(system_id)).all()
 
@@ -82,8 +76,7 @@ def list_variants_for_system(system_id: str):
         raise HTTPException(status_code=400, detail=str(e))
     except Exception:
         raise HTTPException(status_code=500, detail="Internal server error.")
-    finally:
-        db.close()
+
 
 @router.post("/")
 def create_system(
@@ -91,8 +84,8 @@ def create_system(
     name: str,
     display_name: str,
     asset: str,
+    db: Session = Depends(get_db),
 ):
-    db: Session = SessionLocal()
     try:
         strategy = Strategy(
             user_id=uuid.UUID(user_id),
@@ -113,5 +106,3 @@ def create_system(
     except Exception:
         db.rollback()
         raise HTTPException(status_code=500, detail="Internal server error.")
-    finally:
-        db.close()

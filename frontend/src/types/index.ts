@@ -18,6 +18,9 @@ export interface Trade {
   direction: 'long' | 'short';
   raw_return: number;
   log_return: number;
+  r_multiple?: number;
+  timestamp?: string;
+  timeframe?: 'H1' | 'H4' | 'D1';
   created_at?: string;
 }
 
@@ -67,4 +70,47 @@ export interface EquityPoint {
   equity: number;
   drawdown?: number;
   log_return?: number;
+}
+
+export interface MonteCarloSummary {
+  mean_final_return: number;
+  median_final_return: number;
+  p5_final_return: number;
+  p95_final_return: number;
+  mean_max_dd: number;
+  worst_case_dd: number;
+  p95_dd: number;
+}
+
+export interface RiskOfRuinSummary {
+  ruin_probability: number;
+  mean_final_capital: number;
+  median_final_capital: number;
+  mean_max_drawdown: number;
+  worst_case_drawdown: number;
+}
+
+export interface KellyResultPoint {
+  fraction: number;
+  mean_final_capital: number;
+  ruin_probability: number;
+  mean_max_drawdown: number;
+}
+
+export interface KellySimulationResult {
+  all_results: KellyResultPoint[];
+  growth_optimal: KellyResultPoint | null;
+  safe_fraction: KellyResultPoint | null;
+}
+
+export interface WalkForwardWindow {
+  train_expectancy: number;
+  test_expectancy: number;
+  train_sharpe: number;
+  test_sharpe: number;
+}
+
+export interface RegimeDetectionResult {
+  labels: number[];
+  centroids: number[][];
 }

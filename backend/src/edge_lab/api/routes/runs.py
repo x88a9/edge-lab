@@ -1,6 +1,6 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
 from sqlalchemy.orm import Session
-from edge_lab.persistence.database import SessionLocal
+from edge_lab.persistence.database import get_db
 from edge_lab.persistence.models import Run, Trade
 
 from edge_lab.analytics.metrics import MetricsEngine
@@ -17,8 +17,7 @@ import uuid
 router = APIRouter(tags=["Runs"])
 
 @router.get("/")
-def list_runs():
-    db: Session = SessionLocal()
+def list_runs(db: Session = Depends(get_db)):
     try:
         runs = db.query(Run).all()
 
@@ -41,13 +40,10 @@ def list_runs():
         raise HTTPException(status_code=400, detail=str(e))
     except Exception:
         raise HTTPException(status_code=500, detail="Internal server error.")
-    finally:
-        db.close()
 
 
 @router.get("/{run_id}/metrics")
-def metrics(run_id: str):
-    db = SessionLocal()
+def metrics(run_id: str, db: Session = Depends(get_db)):
     try:
         result = MetricsEngine.generate_for_run(
             db=db,
@@ -57,13 +53,10 @@ def metrics(run_id: str):
 
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
-    finally:
-        db.close()
 
 
 @router.get("/{run_id}/equity")
-def equity_curve(run_id: str):
-    db = SessionLocal()
+def equity_curve(run_id: str, db: Session = Depends(get_db)):
     try:
         trades = db.query(Trade).filter_by(
             run_id=uuid.UUID(run_id)
@@ -92,11 +85,11 @@ def equity_curve(run_id: str):
         }
 
     finally:
-        db.close()
+        pass
+
 
 @router.get("/{run_id}/walk-forward")
-def walk_forward(run_id: str):
-    db: Session = SessionLocal()
+def walk_forward(run_id: str, db: Session = Depends(get_db)):
     try:
         result = WalkForwardEngine.run(
             db=db,
@@ -106,12 +99,10 @@ def walk_forward(run_id: str):
 
     except Exception:
         raise HTTPException(status_code=500, detail="Internal server error.")
-    finally:
-        db.close()
+
 
 @router.get("/{run_id}/regime-detection")
-def regime_detection(run_id: str):
-    db: Session = SessionLocal()
+def regime_detection(run_id: str, db: Session = Depends(get_db)):
     try:
         result = RegimeDetectionEngine.detect(
             db=db,
@@ -123,12 +114,10 @@ def regime_detection(run_id: str):
         raise HTTPException(status_code=400, detail=str(e))
     except Exception:
         raise HTTPException(status_code=500, detail="Internal server error.")
-    finally:
-        db.close()
+
 
 @router.get("/{run_id}/kelly-simulation")
-def kelly_simulation(run_id: str):
-    db: Session = SessionLocal()
+def kelly_simulation(run_id: str, db: Session = Depends(get_db)):
     try:
         result = KellySimulationEngine.generate_for_run(
             db=db,
@@ -140,12 +129,10 @@ def kelly_simulation(run_id: str):
         raise HTTPException(status_code=400, detail=str(e))
     except Exception:
         raise HTTPException(status_code=500, detail="Internal server error.")
-    finally:
-        db.close()
+
 
 @router.get("/{run_id}/monte-carlo")
-def monte_carlo(run_id: str):
-    db: Session = SessionLocal()
+def monte_carlo(run_id: str, db: Session = Depends(get_db)):
     try:
         result = MonteCarloEngine.bootstrap_run(
             db=db,
@@ -155,18 +142,14 @@ def monte_carlo(run_id: str):
         return result
 
     except ValueError as e:
-        # z.B. No trades found
         raise HTTPException(status_code=400, detail=str(e))
 
     except Exception:
         raise HTTPException(status_code=500, detail="Internal server error.")
 
-    finally:
-        db.close()
 
 @router.get("/{run_id}/risk-of-ruin")
-def risk_of_ruin(run_id: str):
-    db: Session = SessionLocal()
+def risk_of_ruin(run_id: str, db: Session = Depends(get_db)):
     try:
         result = RiskOfRuinEngine.simulate(
             db=db,
@@ -183,12 +166,9 @@ def risk_of_ruin(run_id: str):
     except Exception:
         raise HTTPException(status_code=500, detail="Internal server error.")
 
-    finally:
-        db.close()
 
 @router.get("/{run_id}")
-def get_run(run_id: str):
-    db: Session = SessionLocal()
+def get_run(run_id: str, db: Session = Depends(get_db)):
     try:
         run = db.query(Run).filter_by(id=uuid.UUID(run_id)).first()
 
@@ -210,12 +190,10 @@ def get_run(run_id: str):
         raise HTTPException(status_code=404, detail=str(e))
     except Exception:
         raise HTTPException(status_code=500, detail="Internal server error.")
-    finally:
-        db.close()
+
 
 @router.get("/{run_id}/trades")
-def list_trades_for_run(run_id: str):
-    db: Session = SessionLocal()
+def list_trades_for_run(run_id: str, db: Session = Depends(get_db)):
     try:
         trades = db.query(Trade).filter_by(
             run_id=uuid.UUID(run_id)
@@ -243,17 +221,14 @@ def list_trades_for_run(run_id: str):
             for t in trades
         ]
 
-
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception:
         raise HTTPException(status_code=500, detail="Internal server error.")
-    finally:
-        db.close()
+
 
 @router.delete("/{run_id}")
-def delete_run(run_id: str):
-    db: Session = SessionLocal()
+def delete_run(run_id: str, db: Session = Depends(get_db)):
     try:
         run = db.query(Run).filter_by(id=uuid.UUID(run_id)).first()
 
@@ -270,8 +245,7 @@ def delete_run(run_id: str):
     except Exception:
         db.rollback()
         raise HTTPException(status_code=500, detail="Internal server error.")
-    finally:
-        db.close()
+
 
 @router.post("/")
 def create_run(
@@ -279,8 +253,8 @@ def create_run(
     display_name: str,
     initial_capital: float,
     run_type: str,
+    db: Session = Depends(get_db),
 ):
-    db: Session = SessionLocal()
     try:
         run = Run(
             variant_id=uuid.UUID(variant_id),
@@ -301,5 +275,3 @@ def create_run(
     except Exception:
         db.rollback()
         raise HTTPException(status_code=500, detail="Internal server error.")
-    finally:
-        db.close()

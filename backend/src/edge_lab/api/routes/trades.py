@@ -1,6 +1,6 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
 from sqlalchemy.orm import Session
-from edge_lab.persistence.database import SessionLocal
+from edge_lab.persistence.database import get_db
 from edge_lab.persistence.models import Trade, Run
 import uuid
 import math
@@ -22,8 +22,7 @@ class TradeCreate(BaseModel):
     timeframe: Optional[str] = None
 
 @router.post("/")
-def create_trade(trade_data: TradeCreate):
-    db: Session = SessionLocal()
+def create_trade(trade_data: TradeCreate, db: Session = Depends(get_db)):
     try:
         run = db.query(Run).filter_by(id=uuid.UUID(trade_data.run_id)).first()
         if not run:
@@ -68,9 +67,6 @@ def create_trade(trade_data: TradeCreate):
     except Exception:
         db.rollback()
         raise HTTPException(status_code=500, detail="Internal server error.")
-    finally:
-        db.close()
-
 
 
 # 🔹 Update Trade
@@ -84,8 +80,8 @@ def update_trade(
     direction: str,
     timestamp: datetime,
     timeframe: str | None = None,
+    db: Session = Depends(get_db),
 ):
-    db: Session = SessionLocal()
     try:
         trade = db.query(Trade).filter_by(id=uuid.UUID(trade_id)).first()
         if not trade:
@@ -124,14 +120,11 @@ def update_trade(
     except Exception:
         db.rollback()
         raise HTTPException(status_code=500, detail="Internal server error.")
-    finally:
-        db.close()
 
 
 # 🔹 Delete Trade
 @router.delete("/{trade_id}")
-def delete_trade(trade_id: str):
-    db: Session = SessionLocal()
+def delete_trade(trade_id: str, db: Session = Depends(get_db)):
     try:
         trade = db.query(Trade).filter_by(id=uuid.UUID(trade_id)).first()
         if not trade:
@@ -147,14 +140,11 @@ def delete_trade(trade_id: str):
     except Exception:
         db.rollback()
         raise HTTPException(status_code=500, detail="Internal server error.")
-    finally:
-        db.close()
 
 
 # 🔹 List Trades
 @router.get("/")
-def list_trades():
-    db: Session = SessionLocal()
+def list_trades(db: Session = Depends(get_db)):
     try:
         trades = db.query(Trade).all()
 
@@ -183,14 +173,11 @@ def list_trades():
 
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
-    finally:
-        db.close()
 
 
 # 🔹 Get Single Trade
 @router.get("/{trade_id}")
-def get_trade(trade_id: str):
-    db: Session = SessionLocal()
+def get_trade(trade_id: str, db: Session = Depends(get_db)):
     try:
         trade = db.query(Trade).filter_by(
             id=uuid.UUID(trade_id)
@@ -218,5 +205,3 @@ def get_trade(trade_id: str):
 
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
-    finally:
-        db.close()

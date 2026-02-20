@@ -8,6 +8,14 @@ import { formatCurrency, formatPercent, formatSharpe, formatFloat, formatDate } 
 import type { EquityPoint } from '../types';
 import AddTradeModal from '../components/modals/AddTradeModal';
 import FinishRunModal from '../components/modals/FinishRunModal';
+import CollapsibleSection from '../components/CollapsibleSection';
+import EquityDrawdownPanel from '../components/analytics/EquityDrawdownPanel';
+import DistributionPanel from '../components/analytics/DistributionPanel';
+import MonteCarloPanel from '../components/analytics/MonteCarloPanel';
+import RiskOfRuinPanel from '../components/analytics/RiskOfRuinPanel';
+import KellySimulationPanel from '../components/analytics/KellySimulationPanel';
+import WalkForwardPanel from '../components/analytics/WalkForwardPanel';
+import RegimeAnalysisPanel from '../components/analytics/RegimeAnalysisPanel';
 
 export default function RunPage() {
   const { runId } = useParams();
@@ -108,54 +116,32 @@ export default function RunPage() {
       )}
 
       {tab === 'analytics' && (
-        <section className="grid grid-cols-2 gap-6">
-          <div className="card p-4">
-            <div className="section-title mb-2">Equity Curve</div>
-            {!equity?.length ? (
-              <div className="meta">No equity data available.</div>
-            ) : (
-              <EquityChart points={equity as EquityPoint[]} />
-            )}
-          </div>
-          <div className="card p-4">
-            <div className="section-title mb-2">Notes</div>
-            <div className="meta">Walk-forward, regime detection, and monte-carlo can be exposed as advanced panels.</div>
-          </div>
+        <section className="space-y-4">
+          <CollapsibleSection title="Equity & Drawdown" defaultOpen>
+            <EquityDrawdownPanel runId={run.id} />
+          </CollapsibleSection>
+          <CollapsibleSection title="Distribution" defaultOpen>
+            <DistributionPanel runId={run.id} />
+          </CollapsibleSection>
+          <CollapsibleSection title="Monte Carlo" defaultOpen>
+            <MonteCarloPanel runId={run.id} />
+          </CollapsibleSection>
+          <CollapsibleSection title="Risk of Ruin" defaultOpen>
+            <RiskOfRuinPanel runId={run.id} />
+          </CollapsibleSection>
+          <CollapsibleSection title="Kelly Simulation" defaultOpen>
+            <KellySimulationPanel runId={run.id} />
+          </CollapsibleSection>
+          <CollapsibleSection title="Walk Forward Analysis" defaultOpen>
+            <WalkForwardPanel runId={run.id} />
+          </CollapsibleSection>
+          <CollapsibleSection title="Regime Analysis" defaultOpen>
+            <RegimeAnalysisPanel runId={run.id} />
+          </CollapsibleSection>
         </section>
       )}
-
-      <AddTradeModal
-        runId={run.id}
-        open={addOpen}
-        onClose={() => setAddOpen(false)}
-        onAdd={(newTrade) => setTrades([newTrade, ...trades])}
-      />
-
-      <FinishRunModal
-        runId={run.id}
-        open={settingsOpen}
-        onClose={() => setSettingsOpen(false)}
-        onFinished={(status) => setRun(run ? { ...run, status } : run)}
-      />
     </div>
   );
 }
 
-// Inline simple EquityChart to avoid missing import
-function EquityChart({ points }: { points: EquityPoint[] }) {
-  const width = 600;
-  const height = 200;
-  const padding = 10;
-  const xs = points.map((_, i) => i);
-  const ys = points.map((p) => p.equity);
-  const minY = Math.min(...ys);
-  const maxY = Math.max(...ys);
-  const scaleX = (i: number) => padding + (i / Math.max(1, xs.length - 1)) * (width - padding * 2);
-  const scaleY = (y: number) => height - padding - ((y - minY) / Math.max(1, maxY - minY)) * (height - padding * 2);
-  const d = points.map((p, i) => `${i === 0 ? 'M' : 'L'} ${scaleX(i)} ${scaleY(p.equity)}`).join(' ');
-  return (
-    <svg width={width} height={height} className="bg-neutral-900 border border-neutral-800">
-      <path d={d} fill="none" stroke="#38bdf8" strokeWidth={1.5} />
-    </svg>
-  );
-}
+// Remove inline EquityChart not used anymore
