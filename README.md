@@ -1,153 +1,228 @@
 # Edge Lab
 
-Edge Lab is a modular research and execution framework for systematic trading.
+Edge Lab is a modular research and execution framework for systematic
+trading.
 
-It is designed to enforce research discipline through controlled experimentation,
-versioned strategy evolution, and statistically robust performance analytics.
+It enforces research discipline through controlled experimentation,
+versioned strategy evolution, and statistically robust performance
+analytics.
 
-The core objective is simple:
+Core objective:
 
-Measure edge.
-Track edge.
-Validate edge.
+Measure edge.\
+Track edge.\
+Validate edge.\
 Scale edge.
 
----
+------------------------------------------------------------------------
 
 ## Research Philosophy
 
-Edge Lab enforces strict structural separation:
+Strict structural separation:
 
 Strategy → Variant → Run → Trades
 
-Each backtest is executed as a controlled block of exactly 100 trades.
+Each backtest is executed as a controlled 100-trade block.
 
-This allows:
+Purpose:
 
-- Stability testing
-- Edge decay detection
-- Variant comparison
-- Overfitting mitigation
-- Development tracking over time
+-   Stability testing
+-   Edge decay detection
+-   Variant comparison
+-   Overfitting mitigation
+-   Structured development tracking
 
-Backtests are not treated as marketing material — they are treated as research samples.
+Backtests are treated as research samples --- not marketing material.
 
----
+------------------------------------------------------------------------
 
 ## Architecture
 
-Strategy
-└── Variant (parameter iteration)
-├── Run (Backtest – 100 trades)
-├── Run (Backtest – 100 trades)
-└── Run (Live execution)
-└── Trades
+Strategy\
+└── Variant (parameter iteration)\
+    ├── Run (Backtest -- 100 trades)\
+    ├── Run (Backtest -- 100 trades)\
+    └── Run (Live execution)\
+        └── Trades
 
+Variants form an evolutionary tree via parent-child relationships.
 
-Each run is fully isolated and reproducible.
+Runs are isolated and reproducible.
 
-Variants form an evolutionary tree via parent-child relationships,
-allowing structured development tracking.
-
----
+------------------------------------------------------------------------
 
 ## Core Capabilities
 
 ### Research Layer
-- Controlled 100-trade backtest blocks
-- Version-controlled strategy variants
-- Parameter hashing for reproducibility
-- Variant evolution tree
-- Walk-forward testing (planned)
+
+-   Controlled 100-trade blocks
+-   Versioned variants
+-   Parameter hashing
+-   Evolution tree tracking
+-   Walk-forward testing
+-   Monte Carlo simulation
+-   Risk-of-ruin modeling
 
 ### Analytics Engine
-All performance metrics are derived from log-return series.
 
-Includes:
+Log-return based analytics:
 
-- Expectancy
-- Win rate
-- Payoff ratio
-- Kelly fraction (full & fractional)
-- Sharpe ratio
-- Sortino ratio
-- Volatility
-- Volatility drag
-- Max drawdown
-- Calmar ratio
-- Risk of ruin
-- Skew & kurtosis
-- Rolling stability metrics
-- Monthly PnL aggregation
+-   Expectancy
+-   Win rate
+-   Payoff ratio
+-   Kelly (full & fractional)
+-   Sharpe
+-   Sortino
+-   Volatility
+-   Volatility drag
+-   Max drawdown
+-   Calmar
+-   Skew / Kurtosis
+-   Rolling stability metrics
+-   Monthly aggregation
+
+All analytics are tenant-isolated.
+
+------------------------------------------------------------------------
 
 ### Execution Layer
-- Backtest engine
-- Live trade logging
-- Manual trade entry
-- Broker adapters (planned)
 
-### Extensibility
-- Modular architecture
-- Plugin system (planned)
-- API layer (planned)
-- GUI layer (planned)
+-   Backtest engine
+-   Manual trade logging
+-   Live trade logging
+-   Broker adapters (planned)
 
----
+------------------------------------------------------------------------
 
-## Project Structure
+## Multi-User Architecture
 
-edge-lab/
-│
-├── src/
-│ ├── core/
-│ ├── analytics/
-│ ├── research/
-│ ├── execution/
-│ ├── persistence/
-│ ├── plugins/
-│ └── api/
-│
-├── tests/
-├── notebooks/
-├── docs/
-└── examples/
+Hard multi-tenant isolation:
 
+-   user_id on all entities
+-   FK enforcement
+-   Tenant-aware unique constraints (user_id + name)
+-   Indexed ownership
+-   Route-level filtering
+-   Service-level filtering
+-   Analytics-level filtering
+-   CLI ownership enforcement
 
----
+Authentication:
 
-## Development Roadmap
+-   JWT tokens
+-   Argon2 hashing
+-   OAuth2 flow
+-   No global access paths
 
-### v0.1
-- Core domain models
-- 100-trade run structure
-- Metrics engine
-- SQLite persistence
+------------------------------------------------------------------------
 
-### v0.2
-- Variant evolution tracking
-- Aggregated performance analytics
-- Rolling statistics
+## Deployment
 
-### v0.3
-- Monte Carlo simulation
-- Bootstrap confidence intervals
-- Risk-of-ruin modeling
+Self-hosted via Docker:
 
-### v1.0
-- Live execution integration
-- Plugin system
-- REST API
-- Optional GUI
+``` bash
+docker compose up -d --build
+```
 
----
+Required environment variables:
 
-## Status
+-   DATABASE_URL
+-   JWT_SECRET
 
-Early architecture phase.
+------------------------------------------------------------------------
 
-Edge Lab is being built as a long-term systematic trading research infrastructure.
+# Development Status
 
----
+## Phase 0 -- Research Engine
+
+✔ Domain models\
+✔ Metrics engine\
+✔ Equity curve\
+✔ Monte Carlo\
+✔ Risk of ruin\
+✔ Walk forward\
+✔ Variant analytics
+
+## Phase 1 -- Multi-User Core
+
+✔ Hard tenant isolation\
+✔ Ownership constraints\
+✔ Indexed user_id\
+✔ CLI isolation\
+✔ Alembic reset
+
+------------------------------------------------------------------------
+
+# Upcoming Roadmap
+
+## Phase 2 -- Persisted Analytics Layer
+
+Goal: deterministic snapshot-based analytics.
+
+-   RunAnalytics model
+-   Snapshot storage (JSONB)
+-   Explicit compute endpoint
+-   Dirty-flag invalidation
+-   No auto-recompute on read
+-   Deterministic research state
+
+------------------------------------------------------------------------
+
+## Phase 3 -- Admin Layer
+
+Goal: controlled multi-user hosting.
+
+-   First-boot admin creation
+-   Admin dashboard
+-   User management
+-   Read-only tenant inspection
+-   No global bypass queries
+
+------------------------------------------------------------------------
+
+## Phase 4 -- Run Sharing
+
+Goal: collaborative research without data leakage.
+
+-   Read-only run sharing
+-   Token-based access
+-   Optional expiration
+-   Isolated shared views
+
+------------------------------------------------------------------------
+
+## Phase 5 -- UI Overhaul
+
+Goal: professional research interface.
+
+-   Clean dashboard layout
+-   Proper chart axis labeling
+-   Improved chart ergonomics
+-   Visual refinement
+-   Research-focused UX
+
+------------------------------------------------------------------------
+
+## Phase 6 -- Plugin & Extension System
+
+Goal: extensibility without core modification.
+
+-   Analytics plugins
+-   Strategy plugins
+-   External data adapters
+-   Modular engine hooks
+
+------------------------------------------------------------------------
+
+## Phase 7 -- Advanced Research Tooling
+
+-   Regime clustering
+-   Cross-asset correlation analysis
+-   Portfolio-level analytics
+-   Position sizing simulations
+-   Scenario stress testing
+
+------------------------------------------------------------------------
 
 ## License
 
