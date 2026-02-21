@@ -13,6 +13,7 @@ class VariantCreate(BaseModel):
     strategy_id: str
     name: str
     display_name: str
+    description: str | None = None
     version_number: int
     parameter_hash: str
     parameter_json: str
@@ -62,6 +63,7 @@ def list_variants(
             "id": v.id,
             "strategy_id": v.strategy_id,
             "display_name": v.display_name or v.name,
+            "description": v.description,
             "name": v.name,
             "version": v.version_number,
         }
@@ -85,6 +87,7 @@ def get_variant(
         "id": variant.id,
         "name": variant.name,
         "display_name": variant.display_name or variant.name,
+        "description": variant.description,
         "version": variant.version_number,
         "strategy_id": variant.strategy_id,
     }
@@ -115,6 +118,7 @@ def list_runs_for_variant(
         {
             "id": r.id,
             "display_name": r.display_name,
+            "description": r.description,
             "status": r.status,
             "run_type": r.run_type,
             "initial_capital": r.initial_capital,
@@ -170,6 +174,7 @@ def create_variant(
         strategy_id=strategy.id,
         name=variant_data.name,
         display_name=variant_data.display_name,
+        description=variant_data.description,
         version_number=variant_data.version_number,
         parameter_hash=variant_data.parameter_hash,
         parameter_json=variant_data.parameter_json,

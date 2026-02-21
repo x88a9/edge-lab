@@ -5,12 +5,14 @@ from edge_lab.persistence.models import Strategy, Variant, User
 from edge_lab.security.auth import get_current_user
 import uuid
 from pydantic import BaseModel
+from typing import Optional
 
 router = APIRouter(tags=["Systems"])
 
 class SystemCreate(BaseModel):
     name: str
     display_name: str
+    description: Optional[str] = None
     asset: str
 
 
@@ -34,6 +36,7 @@ def list_systems(
             "id": s.id,
             "name": s.name,
             "display_name": s.display_name or s.name,
+            "description": s.description,
             "asset": s.asset,
             "created_at": s.created_at,
         }
@@ -67,6 +70,7 @@ def get_system(
         "id": system.id,
         "name": system.name,
         "display_name": system.display_name or system.name,
+        "description": system.description,
         "asset": system.asset,
         "created_at": system.created_at,
     }
@@ -82,7 +86,6 @@ def list_variants_for_system(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    # First ensure system belongs to user
     system = (
         db.query(Strategy)
         .filter(
@@ -130,6 +133,7 @@ def create_system(
         name=system_data.name,
         display_name=system_data.display_name,
         asset=system_data.asset,
+        description=system_data.description,
     )
 
     db.add(strategy)
@@ -138,5 +142,5 @@ def create_system(
 
     return {
         "id": strategy.id,
-        "display_name": strategy.display_name,
+        "display_name": strategy.display_name
     }

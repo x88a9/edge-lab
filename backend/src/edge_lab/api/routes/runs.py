@@ -21,6 +21,7 @@ router = APIRouter(tags=["Runs"])
 class RunCreate(BaseModel):
     variant_id: str
     display_name: str
+    description: str | None = None
     initial_capital: float
     run_type: str
 
@@ -69,6 +70,7 @@ def list_runs(
             "id": r.id,
             "variant_id": r.variant_id,
             "display_name": r.display_name or "Unnamed Run",
+            "description": r.description,
             "status": r.status,
             "run_type": r.run_type,
             "initial_capital": r.initial_capital,
@@ -93,6 +95,7 @@ def get_run(
         "id": run.id,
         "variant_id": run.variant_id,
         "display_name": run.display_name,
+        "description": run.description,
         "status": run.status,
         "run_type": run.run_type,
         "initial_capital": run.initial_capital,
@@ -115,6 +118,7 @@ def create_run(
         user_id=current_user.id,
         variant_id=uuid.UUID(run_data.variant_id),
         display_name=run_data.display_name,
+        description=run_data.description,
         initial_capital=run_data.initial_capital,
         run_type=run_data.run_type,
     )

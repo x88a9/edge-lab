@@ -166,6 +166,7 @@ class Variant(Base):
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     display_name: Mapped[str] = mapped_column(String(255), nullable=True)
     version_number: Mapped[int] = mapped_column(Integer, nullable=False)
+    description: Mapped[str] = mapped_column(Text, nullable=True)
 
     parameter_hash: Mapped[str] = mapped_column(String(255), nullable=False)
     parameter_json: Mapped[str] = mapped_column(Text, nullable=False)
@@ -219,6 +220,7 @@ class Run(Base):
 
     run_type: Mapped[str] = mapped_column(String(50), nullable=False)
     status: Mapped[str] = mapped_column(String(20), default="open", nullable=False)
+    description: Mapped[str] = mapped_column(Text, nullable=True)
     display_name: Mapped[str] = mapped_column(String(255), nullable=True)
     trade_limit: Mapped[int] = mapped_column(Integer, default=100)
     initial_capital: Mapped[float] = mapped_column(Float, nullable=False)
