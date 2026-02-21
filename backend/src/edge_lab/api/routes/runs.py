@@ -14,8 +14,15 @@ from edge_lab.analytics.kelly_simulation import KellySimulationEngine
 
 import numpy as np
 import uuid
+from pydantic import BaseModel
 
 router = APIRouter(tags=["Runs"])
+
+class RunCreate(BaseModel):
+    variant_id: str
+    display_name: str
+    initial_capital: float
+    run_type: str
 
 
 # ==========================================================
@@ -100,19 +107,16 @@ def get_run(
 
 @router.post("/")
 def create_run(
-    variant_id: str,
-    display_name: str,
-    initial_capital: float,
-    run_type: str,
+    run_data: RunCreate,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     run = Run(
         user_id=current_user.id,
-        variant_id=uuid.UUID(variant_id),
-        display_name=display_name,
-        initial_capital=initial_capital,
-        run_type=run_type,
+        variant_id=uuid.UUID(run_data.variant_id),
+        display_name=run_data.display_name,
+        initial_capital=run_data.initial_capital,
+        run_type=run_data.run_type,
     )
 
     db.add(run)

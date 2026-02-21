@@ -4,8 +4,14 @@ from edge_lab.persistence.database import get_db
 from edge_lab.persistence.models import Strategy, Variant, User
 from edge_lab.security.auth import get_current_user
 import uuid
+from pydantic import BaseModel
 
 router = APIRouter(tags=["Systems"])
+
+class SystemCreate(BaseModel):
+    name: str
+    display_name: str
+    asset: str
 
 
 # ==========================================================
@@ -115,17 +121,15 @@ def list_variants_for_system(
 
 @router.post("/")
 def create_system(
-    name: str,
-    display_name: str,
-    asset: str,
+    system_data: SystemCreate,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     strategy = Strategy(
         user_id=current_user.id,
-        name=name,
-        display_name=display_name,
-        asset=asset,
+        name=system_data.name,
+        display_name=system_data.display_name,
+        asset=system_data.asset,
     )
 
     db.add(strategy)

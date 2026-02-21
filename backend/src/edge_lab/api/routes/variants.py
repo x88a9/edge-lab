@@ -5,8 +5,17 @@ from edge_lab.persistence.models import Variant, Run, Strategy, User
 from edge_lab.security.auth import get_current_user
 from edge_lab.analytics.variant_analyzer import VariantAnalyzer
 import uuid
+from pydantic import BaseModel
 
 router = APIRouter(tags=["Variants"])
+
+class VariantCreate(BaseModel):
+    strategy_id: str
+    name: str
+    display_name: str
+    version_number: int
+    parameter_hash: str
+    parameter_json: str
 
 
 # ==========================================================
@@ -139,12 +148,7 @@ def analyze_variant(
 
 @router.post("/")
 def create_variant(
-    strategy_id: str,
-    name: str,
-    display_name: str,
-    version_number: int,
-    parameter_hash: str,
-    parameter_json: str,
+    variant_data: VariantCreate,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -152,7 +156,7 @@ def create_variant(
     strategy = (
         db.query(Strategy)
         .filter(
-            Strategy.id == uuid.UUID(strategy_id),
+            Strategy.id == uuid.UUID(variant_data.strategy_id),
             Strategy.user_id == current_user.id,
         )
         .first()
@@ -164,11 +168,11 @@ def create_variant(
     variant = Variant(
         user_id=current_user.id,
         strategy_id=strategy.id,
-        name=name,
-        display_name=display_name,
-        version_number=version_number,
-        parameter_hash=parameter_hash,
-        parameter_json=parameter_json,
+        name=variant_data.name,
+        display_name=variant_data.display_name,
+        version_number=variant_data.version_number,
+        parameter_hash=variant_data.parameter_hash,
+        parameter_json=variant_data.parameter_json,
     )
 
     db.add(variant)

@@ -11,7 +11,6 @@ from typing import Optional
 
 router = APIRouter(tags=["Trades"])
 
-
 # ==========================================================
 # HELPER — OWNERSHIP CHECKS
 # ==========================================================
@@ -68,6 +67,15 @@ class TradeCreate(BaseModel):
     size: float
     direction: str
     timestamp: Optional[datetime] = None
+    timeframe: Optional[str] = None
+
+class TradeUpdate(BaseModel):
+    entry_price: float
+    exit_price: float
+    stop_loss: float
+    size: float
+    direction: str
+    timestamp: datetime
     timeframe: Optional[str] = None
 
 
@@ -128,36 +136,32 @@ def create_trade(
 @router.put("/{trade_id}")
 def update_trade(
     trade_id: str,
-    entry_price: float,
-    exit_price: float,
-    stop_loss: float,
-    size: float,
-    direction: str,
-    timestamp: datetime,
-    timeframe: str | None = None,
+    trade_data: TradeUpdate,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     trade = get_owned_trade(trade_id, db, current_user)
 
-    risk = abs(entry_price - stop_loss)
+    # Risk calculation identical to create; guard maintained
+    risk = abs(trade_data.entry_price - trade_data.stop_loss)
     if risk == 0:
         raise HTTPException(status_code=400, detail="Stop loss cannot equal entry.")
 
+    direction = trade_data.direction.lower()
     if direction == "long":
-        r_multiple = (exit_price - entry_price) / risk
-        raw_return = (exit_price - entry_price) / entry_price
+        r_multiple = (trade_data.exit_price - trade_data.entry_price) / risk
+        raw_return = (trade_data.exit_price - trade_data.entry_price) / trade_data.entry_price
     else:
-        r_multiple = (entry_price - exit_price) / risk
-        raw_return = (entry_price - exit_price) / entry_price
+        r_multiple = (trade_data.entry_price - trade_data.exit_price) / risk
+        raw_return = (trade_data.entry_price - trade_data.exit_price) / trade_data.entry_price
 
-    trade.entry_price = entry_price
-    trade.exit_price = exit_price
-    trade.stop_loss = stop_loss
-    trade.size = size
+    trade.entry_price = trade_data.entry_price
+    trade.exit_price = trade_data.exit_price
+    trade.stop_loss = trade_data.stop_loss
+    trade.size = trade_data.size
     trade.direction = direction
-    trade.timestamp = timestamp
-    trade.timeframe = timeframe
+    trade.timestamp = trade_data.timestamp
+    trade.timeframe = trade_data.timeframe
     trade.raw_return = raw_return
     trade.log_return = math.log(1 + raw_return)
     trade.r_multiple = r_multiple
