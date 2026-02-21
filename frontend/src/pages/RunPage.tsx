@@ -50,6 +50,13 @@ export default function RunPage() {
         </div>
       </div>
 
+      {run.description && (
+        <div className="card p-4">
+          <div className="section-title mb-2">Description</div>
+          <div className="meta whitespace-pre-wrap">{run.description}</div>
+        </div>
+      )}
+
       {tab === 'overview' && (
         <section>
           <div className="grid grid-cols-2 gap-6">
@@ -117,6 +124,11 @@ export default function RunPage() {
 
       {tab === 'analytics' && (
         <section className="space-y-4">
+          {trades.length === 0 && (
+            <div className="card p-3">
+              <div className="meta">No trades yet. Add trades to unlock analytics panels.</div>
+            </div>
+          )}
           <CollapsibleSection title="Equity & Drawdown" defaultOpen>
             <EquityDrawdownPanel runId={run.id} />
           </CollapsibleSection>
@@ -139,6 +151,28 @@ export default function RunPage() {
             <RegimeAnalysisPanel runId={run.id} />
           </CollapsibleSection>
         </section>
+      )}
+
+      {addOpen && (
+        <AddTradeModal
+          runId={run.id}
+          open={addOpen}
+          onClose={() => setAddOpen(false)}
+          onAdd={(t) => {
+            setTrades([...trades, t]);
+          }}
+        />
+      )}
+
+      {settingsOpen && (
+        <FinishRunModal
+          runId={run.id}
+          open={settingsOpen}
+          onClose={() => setSettingsOpen(false)}
+          onFinished={(status) => {
+            setRun({ ...run, status } as any);
+          }}
+        />
       )}
     </div>
   );

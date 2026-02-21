@@ -70,7 +70,8 @@ export default function RiskOfRuinPanel({ runId }: Props) {
         <svg width={width} height={height} className="bg-neutral-900 border border-neutral-800">
           <rect x={pad} y={height/2-12} width={width-pad*2} height={24} fill="#111827" stroke="#374151" />
           <rect x={pad} y={height/2-12} width={barWidth(summary.ruin_probability)-pad} height={24} fill="rgba(239,68,68,0.5)" />
-          <text x={width/2} y={height-2} textAnchor="middle" className="meta">Probability of Ruin (%)</text>
+-          <text x={width/2} y={height-2} textAnchor="middle" className="meta">Probability of Ruin (%)</text>
++          <text x={width/2} y={height-2} textAnchor="middle" className="meta" fill="#fff">Probability of Ruin (%)</text>
           <g>
             <rect x={pad} y={pad} width={200} height={24} fill="rgba(0,0,0,0.2)" />
             <rect x={pad+8} y={pad+6} width={12} height={8} fill="rgba(239,68,68,0.5)" />

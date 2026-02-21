@@ -19,10 +19,10 @@ export default function RunsList() {
         columns={[
           { key: 'display_name', label: 'Run', render: (r: any) => r.display_name || r.id },
           { key: 'id', label: 'ID', muted: true },
-          { key: 'variant_id', label: 'Variant', muted: true },
           { key: 'status', label: 'Status', render: (r: any) => <StatusBadge status={r.status} /> },
           { key: 'run_type', label: 'Type' },
           { key: 'initial_capital', label: 'Initial', align: 'right', render: (r: any) => formatCurrency(r.initial_capital) },
+          { key: 'description', label: 'Description' },
         ]}
         rows={data}
         rowKey={(r: any) => r.id}

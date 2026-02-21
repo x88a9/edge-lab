@@ -7,6 +7,7 @@ export interface Run {
   trade_limit?: number;
   display_name?: string;
   created_at?: string;
+  description?: string;
 }
 
 export interface Trade {
@@ -29,6 +30,7 @@ export interface System {
   name: string;
   asset: string;
   display_name?: string;
+  description?: string;
   created_at?: string;
 }
 
@@ -38,6 +40,7 @@ export interface Variant {
   name: string;
   display_name?: string;
   version: number;
+  description?: string;
 }
 
 export interface MetricsSnapshot {

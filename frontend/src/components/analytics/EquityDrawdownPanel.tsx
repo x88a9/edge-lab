@@ -120,19 +120,24 @@ export default function EquityDrawdownPanel({ runId }: Props) {
               <g>
                 <line x1={scaleX(maxDdIndex)} x2={scaleX(maxDdIndex)} y1={pad} y2={height-pad} stroke="#ef4444" strokeDasharray="3,3" />
                 <circle cx={scaleX(maxDdIndex)} cy={scaleY(ys[maxDdIndex])} r={3} fill="#ef4444" />
-                <text x={Math.min(width-pad-140, Math.max(pad+5, scaleX(maxDdIndex)+6))} y={pad+16} className="meta">Max DD {formatPercent(Math.abs(ddSeries[maxDdIndex] || 0), 2)}</text>
+-                <text x={Math.min(width-pad-140, Math.max(pad+5, scaleX(maxDdIndex)+6))} y={pad+16} className="meta">Max DD {formatPercent(Math.abs(ddSeries[maxDdIndex] || 0), 2)}</text>
++                <text x={Math.min(width-pad-140, Math.max(pad+5, scaleX(maxDdIndex)+6))} y={pad+16} className="meta" fill="#fff">Max DD {formatPercent(Math.abs(ddSeries[maxDdIndex] || 0), 2)}</text>
               </g>
             )}
             {/* Axes labels */}
-            <text x={width/2} y={height-2} textAnchor="middle" className="meta">Time Index</text>
-            <text x={-height/2} y={12} transform={`rotate(-90)`} textAnchor="middle" className="meta">Equity (R)</text>
+-            <text x={width/2} y={height-2} textAnchor="middle" className="meta">Time Index</text>
+-            <text x={-height/2} y={12} transform={`rotate(-90)`} textAnchor="middle" className="meta">Equity (R)</text>
++            <text x={width/2} y={height-2} textAnchor="middle" className="meta" fill="#fff">Time Index</text>
++            <text x={-height/2} y={12} transform={`rotate(-90)`} textAnchor="middle" className="meta" fill="#fff">Equity (R)</text>
             {/* Tooltip */}
             {hoverIdx != null && (
               <g>
                 <line x1={scaleX(hoverIdx)} x2={scaleX(hoverIdx)} y1={pad} y2={height-pad} stroke="#9ca3af" strokeDasharray="2,2" />
                 <rect x={Math.min(width-pad-160, Math.max(pad, scaleX(hoverIdx)-80))} y={pad+24} width={160} height={52} fill="rgba(0,0,0,0.6)" stroke="#374151" />
-                <text x={Math.min(width-pad-155, Math.max(pad+5, scaleX(hoverIdx)-75))} y={pad+40} className="meta">t {hoverIdx}</text>
-                <text x={Math.min(width-pad-155, Math.max(pad+5, scaleX(hoverIdx)-75))} y={pad+56} className="meta">Eq: {formatFloat(ys[hoverIdx], 4)} / DD: {formatPercent(Math.abs(ddSeries[hoverIdx] ?? 0), 2)}</text>
+-                <text x={Math.min(width-pad-155, Math.max(pad+5, scaleX(hoverIdx)-75))} y={pad+40} className="meta">t {hoverIdx}</text>
+-                <text x={Math.min(width-pad-155, Math.max(pad+5, scaleX(hoverIdx)-75))} y={pad+56} className="meta">Eq: {formatFloat(ys[hoverIdx], 4)} / DD: {formatPercent(Math.abs(ddSeries[hoverIdx] ?? 0), 2)}</text>
++                <text x={Math.min(width-pad-155, Math.max(pad+5, scaleX(hoverIdx)-75))} y={pad+40} className="meta" fill="#fff">t {hoverIdx}</text>
++                <text x={Math.min(width-pad-155, Math.max(pad+5, scaleX(hoverIdx)-75))} y={pad+56} className="meta" fill="#fff">Eq: {formatFloat(ys[hoverIdx], 4)} / DD: {formatPercent(Math.abs(ddSeries[hoverIdx] ?? 0), 2)}</text>
               </g>
             )}
           </svg>
@@ -146,8 +151,10 @@ export default function EquityDrawdownPanel({ runId }: Props) {
             {/* Drawdown series */}
             <path d={ddPath} fill="none" stroke="#f87171" strokeWidth={1.2} />
             {/* Axes labels */}
-            <text x={width/2} y={ddHeight-2} textAnchor="middle" className="meta">Time Index</text>
-            <text x={-ddHeight/2} y={12} transform={`rotate(-90)`} textAnchor="middle" className="meta">Drawdown (%)</text>
+-            <text x={width/2} y={ddHeight-2} textAnchor="middle" className="meta">Time Index</text>
+-            <text x={-ddHeight/2} y={12} transform={`rotate(-90)`} textAnchor="middle" className="meta">Drawdown (%)</text>
++            <text x={width/2} y={ddHeight-2} textAnchor="middle" className="meta" fill="#fff">Time Index</text>
++            <text x={-ddHeight/2} y={12} transform={`rotate(-90)`} textAnchor="middle" className="meta" fill="#fff">Drawdown (%)</text>
             <text x={width-pad-6} y={pad+16} textAnchor="end" className="meta" fill="#fff">Max DD: {formatPercent(maxDD, 2)}</text>
           </svg>
         </div>

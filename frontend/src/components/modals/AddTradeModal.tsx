@@ -15,6 +15,16 @@ interface Props {
   onAdd: (t: AnyTrade) => void;
 }
 
+function toErrorMessage(e: any): string {
+  const detail = e?.response?.data?.detail;
+  if (typeof detail === 'string') return detail;
+  if (Array.isArray(detail)) {
+    return detail.map((d: any) => d?.msg ?? JSON.stringify(d)).join('; ');
+  }
+  if (detail && typeof detail === 'object') return JSON.stringify(detail);
+  return e?.message ?? 'Unknown error';
+}
+
 export default function AddTradeModal({ runId, open, onClose, onAdd }: Props) {
   const [entry, setEntry] = useState('');
   const [exit, setExit] = useState('');
@@ -53,12 +63,16 @@ export default function AddTradeModal({ runId, open, onClose, onAdd }: Props) {
       const exitNum = Number(exit);
       const sizeNum = Number(size);
       const stopNum = Number(stopLoss);
+      const timestampISO = timestamp ? new Date(timestamp).toISOString() : undefined;
       const { id } = await createTrade({
         run_id: runId,
         entry_price: entryNum,
         exit_price: exitNum,
+        stop_loss: stopNum,
         size: sizeNum,
         direction,
+        timestamp: timestampISO,
+        timeframe,
       });
       const raw_return = direction === 'long' ? (exitNum - entryNum) / entryNum : (entryNum - exitNum) / entryNum;
       const log_return = Math.log(1 + raw_return);
@@ -72,14 +86,14 @@ export default function AddTradeModal({ runId, open, onClose, onAdd }: Props) {
         raw_return,
         log_return,
         stop_loss: stopNum,
-        timestamp: timestamp || new Date().toISOString(),
+        timestamp: timestampISO || new Date().toISOString(),
         timeframe,
       };
       onAdd(t);
       reset();
       onClose();
     } catch (e: any) {
-      setError(e?.response?.data?.detail ?? e.message);
+      setError(toErrorMessage(e));
     } finally {
       setSaving(false);
     }

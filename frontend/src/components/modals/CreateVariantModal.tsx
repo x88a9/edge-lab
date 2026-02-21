@@ -14,6 +14,7 @@ export default function CreateVariantModal({ open, strategyId, onClose, onCreate
   const [version, setVersion] = useState('');
   const [paramHash, setParamHash] = useState('');
   const [paramJson, setParamJson] = useState('');
+  const [description, setDescription] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -31,6 +32,7 @@ export default function CreateVariantModal({ open, strategyId, onClose, onCreate
         version_number: Number(version) || 1,
         parameter_hash: paramHash || 'placeholder-hash',
         parameter_json: paramJson || '{"placeholder": true}',
+        description: description || undefined,
       };
       const created = await createVariant(payload);
       onCreated(created);
@@ -61,6 +63,10 @@ export default function CreateVariantModal({ open, strategyId, onClose, onCreate
           <div>
             <label className="meta">Version</label>
             <input className="input w-full" value={version} onChange={(e) => setVersion(e.target.value)} placeholder="e.g. 1" />
+          </div>
+          <div className="col-span-2">
+            <label className="meta">Description</label>
+            <textarea className="input w-full h-20" value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Optional description" />
           </div>
           <div>
             <label className="meta">Parameter Hash</label>

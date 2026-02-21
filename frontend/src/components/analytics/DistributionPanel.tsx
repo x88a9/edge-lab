@@ -107,25 +107,32 @@ export default function DistributionPanel({ runId }: Props) {
             <g>
               <rect x={pad} y={pad} width={220} height={24} fill="rgba(0,0,0,0.2)" />
               <rect x={pad+8} y={pad+6} width={12} height={8} fill="#38bdf8" />
-              <text x={pad+24} y={pad+16} className="meta">Histogram</text>
+-              <text x={pad+24} y={pad+16} className="meta">Histogram</text>
++              <text x={pad+24} y={pad+16} className="meta" fill="#fff">Histogram</text>
               <line x1={pad+100} x2={pad+116} y1={pad+12} y2={pad+12} stroke="#facc15" strokeWidth={1.2} />
-              <text x={pad+120} y={pad+16} className="meta">Mean</text>
+-              <text x={pad+120} y={pad+16} className="meta">Mean</text>
++              <text x={pad+120} y={pad+16} className="meta" fill="#fff">Mean</text>
               <line x1={pad+160} x2={pad+176} y1={pad+12} y2={pad+12} stroke="#f472b6" strokeWidth={1.2} />
-              <text x={pad+180} y={pad+16} className="meta">Median</text>
+-              <text x={pad+180} y={pad+16} className="meta">Median</text>
++              <text x={pad+180} y={pad+16} className="meta" fill="#fff">Median</text>
             </g>
             <text x={width/2} y={height-2} textAnchor="middle" className="meta" fill="#fff">Return (R)</text>
-            <text x={-height/2} y={12} transform={`rotate(-90)`} textAnchor="middle" className="meta">Frequency</text>
+-            <text x={-height/2} y={12} transform={`rotate(-90)`} textAnchor="middle" className="meta">Frequency</text>
++            <text x={-height/2} y={12} transform={`rotate(-90)`} textAnchor="middle" className="meta" fill="#fff">Frequency</text>
             {/* Tooltip for hovered bin */}
             {hoverBin != null && bins[hoverBin] && (
               <g>
                 <line x1={pad + hoverBin * barW + (barW/2)} x2={pad + hoverBin * barW + (barW/2)} y1={pad} y2={height - pad} stroke="#9ca3af" strokeDasharray="2,2" />
                 <rect x={Math.min(width-pad-160, Math.max(pad, pad + hoverBin * barW - 80))} y={pad+24} width={160} height={46} fill="rgba(0,0,0,0.6)" stroke="#374151" />
-                <text x={Math.min(width-pad-155, Math.max(pad+5, pad + hoverBin * barW - 75))} y={pad+40} className="meta">Bin {hoverBin}</text>
-                <text x={Math.min(width-pad-155, Math.max(pad+5, pad + hoverBin * barW - 75))} y={pad+56} className="meta">x≈ {formatFloat(bins[hoverBin].x, 4)} / n= {bins[hoverBin].c}</text>
+-                <text x={Math.min(width-pad-155, Math.max(pad+5, pad + hoverBin * barW - 75))} y={pad+40} className="meta">Bin {hoverBin}</text>
+-                <text x={Math.min(width-pad-155, Math.max(pad+5, pad + hoverBin * barW - 75))} y={pad+56} className="meta">x≈ {formatFloat(bins[hoverBin].x, 4)} / n= {bins[hoverBin].c}</text>
++                <text x={Math.min(width-pad-155, Math.max(pad+5, pad + hoverBin * barW - 75))} y={pad+40} className="meta" fill="#fff">Bin {hoverBin}</text>
++                <text x={Math.min(width-pad-155, Math.max(pad+5, pad + hoverBin * barW - 75))} y={pad+56} className="meta" fill="#fff">x≈ {formatFloat(bins[hoverBin].x, 4)} / n= {bins[hoverBin].c}</text>
               </g>
             )}
             {/* Skew annotation */}
-            <text x={width-pad-6} y={pad+16} textAnchor="end" className="meta">Skew: {formatFloat(skew, 3)}</text>
+-            <text x={width-pad-6} y={pad+16} textAnchor="end" className="meta">Skew: {formatFloat(skew, 3)}</text>
++            <text x={width-pad-6} y={pad+16} textAnchor="end" className="meta" fill="#fff">Skew: {formatFloat(skew, 3)}</text>
           </svg>
           {box && (
             <svg width={width} height={120} className="bg-neutral-900 border border-neutral-800">

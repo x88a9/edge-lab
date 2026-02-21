@@ -43,36 +43,48 @@ export default function SystemsPage() {
     }
   };
 
-  if (loading) return <div className="card p-4"><div className="meta">Loading systems…</div></div>;
-  if (error) return <div className="card p-4"><div className="meta text-danger">{error}</div></div>;
+  // Treat a specific "No systems found" error as an empty-state
+  const isEmptyError = !!error && /no systems found/i.test(error);
+  const showEmptyCard = data.length === 0 || isEmptyError;
 
   return (
     <div>
-      <div className="page-title mb-2">Strategies</div>
-      <div className="subline mb-4">All strategies in the workspace</div>
+      <div className="page-title mb-2">Systems</div>
+      <div className="subline mb-4">All systems in the workspace</div>
       <div className="mb-3 flex justify-end">
-        <button className="btn-primary" onClick={() => setOpenStrategy(true)}>+ New Strategy</button>
+        <button className="btn-primary" onClick={() => setOpenStrategy(true)}>+ Create System</button>
       </div>
 
-      <DataTable
-        columns={[
-          { key: 'display_name', label: 'Strategy', render: (s: any) => s.display_name || s.name },
-          { key: 'id', label: 'ID', muted: true },
-          { key: 'asset', label: 'Asset' },
-          { key: 'created_at', label: 'Created', muted: true },
-          { key: 'actions', label: 'Actions', render: (s: any) => (
-            <div className="flex gap-2 justify-end">
-              <button className="btn" onClick={(e) => { e.stopPropagation(); setSelectedSystemId(s.id); setOpenVariant(true); }}>+ New Variant</button>
-              <button className="btn" onClick={(e) => { e.stopPropagation(); toggleVariants(s); }}>{expanded.has(s.id) ? 'Hide Variants' : 'Show Variants'}</button>
-            </div>
-          ), align: 'right' },
-        ]}
-        rows={data}
-        rowKey={(s: any) => s.id}
-        onRowClick={(s: any) => navigate(`/systems/${s.id}`)}
-      />
+      {loading ? (
+        <div className="card p-4"><div className="meta">Loading systems…</div></div>
+      ) : !isEmptyError && error ? (
+        <div className="card p-4"><div className="meta text-danger">{error}</div></div>
+      ) : showEmptyCard ? (
+        <div className="card p-4 flex items-center justify-between">
+          <div className="meta text-danger">No systems found</div>
+        </div>
+      ) : (
+        <DataTable
+          columns={[
+            { key: 'display_name', label: 'System', render: (s: any) => s.display_name || s.name },
+            { key: 'id', label: 'ID', muted: true },
+            { key: 'asset', label: 'Asset' },
+            { key: 'description', label: 'Description', render: (s: any) => s.description || '' },
+            { key: 'created_at', label: 'Created', muted: true },
+            { key: 'actions', label: 'Actions', render: (s: any) => (
+              <div className="flex gap-2 justify-end">
+                <button className="btn" onClick={(e) => { e.stopPropagation(); setSelectedSystemId(s.id); setOpenVariant(true); }}>+ New Variant</button>
+                <button className="btn" onClick={(e) => { e.stopPropagation(); toggleVariants(s); }}>{expanded.has(s.id) ? 'Hide Variants' : 'Show Variants'}</button>
+              </div>
+            ), align: 'right' },
+          ]}
+          rows={data}
+          rowKey={(s: any) => s.id}
+          onRowClick={(s: any) => navigate(`/systems/${s.id}`)}
+        />
+      )}
 
-      {[...expanded].map((systemId) => {
+      {!loading && (!error || isEmptyError) && [...expanded].map((systemId) => {
         const variants = variantsBySystem[systemId] || [];
         const sys = data.find((s) => s.id === systemId);
         return (
@@ -86,6 +98,7 @@ export default function SystemsPage() {
                   { key: 'display_name', label: 'Variant', render: (v: any) => v.display_name || v.name },
                   { key: 'id', label: 'ID', muted: true },
                   { key: 'version', label: 'Version', render: (v: any) => v.version ?? v.version_number },
+                  { key: 'description', label: 'Description' },
                 ]}
                 rows={variants}
                 rowKey={(v: any) => v.id}
@@ -110,7 +123,13 @@ export default function SystemsPage() {
           open={openVariant}
           strategyId={selectedSystemId}
           onClose={() => setOpenVariant(false)}
-          onCreated={() => setToast('Variant created')}
+          onCreated={async () => {
+            setToast('Variant created');
+            try {
+              const variants = await listVariantsForSystem(selectedSystemId);
+              setVariantsBySystem((prev) => ({ ...prev, [selectedSystemId]: variants }));
+            } catch {}
+          }}
         />
       )}
 

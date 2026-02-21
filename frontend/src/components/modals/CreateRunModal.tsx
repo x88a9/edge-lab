@@ -12,6 +12,7 @@ export default function CreateRunModal({ open, variantId, onClose, onCreated }: 
   const [displayName, setDisplayName] = useState('');
   const [initialCapital, setInitialCapital] = useState<string>('100000');
   const [runType, setRunType] = useState<'backtest' | 'forward' | 'montecarlo'>('backtest');
+  const [description, setDescription] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -27,6 +28,7 @@ export default function CreateRunModal({ open, variantId, onClose, onCreated }: 
         display_name: displayName,
         initial_capital: Number(initialCapital),
         run_type: runType,
+        description: description || undefined,
       };
       const created = await createRun(payload);
       onCreated(created);
@@ -61,6 +63,10 @@ export default function CreateRunModal({ open, variantId, onClose, onCreated }: 
               <option value="forward">Forward</option>
               <option value="montecarlo">Monte Carlo</option>
             </select>
+          </div>
+          <div>
+            <label className="meta">Description</label>
+            <textarea className="input w-full h-20" value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Optional description" />
           </div>
         </div>
         <div className="mt-5 flex justify-end gap-2">

@@ -5,6 +5,7 @@ import StatusBadge from '../components/StatusBadge';
 import { formatCurrency } from '../utils/format';
 import { getVariant, listRunsForVariant } from '../api/variants';
 import { getSystem } from '../api/systems';
+import CreateRunModal from '../components/modals/CreateRunModal';
 
 export default function VariantPage() {
   const { variantId } = useParams();
@@ -14,6 +15,7 @@ export default function VariantPage() {
   const [variant, setVariant] = useState<any>(null);
   const [systemName, setSystemName] = useState<string>('');
   const [runs, setRuns] = useState<any[]>([]);
+  const [openRun, setOpenRun] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -47,18 +49,26 @@ export default function VariantPage() {
 
   if (loading) return <div className="card p-4"><div className="meta">Loading variant…</div></div>;
   if (error) return <div className="card p-4"><div className="meta text-danger">{error}</div></div>;
-  if (!variant) return <div className="card p-4"><div className="meta">Variant not found</div></div>;
-
-  const variantTitle = variant.display_name || variant.name || variant.id;
+  if (!variant) return null;
 
   return (
     <div>
-      <div className="page-title mb-2">{variantTitle}</div>
-      <div className="subline mb-4">Strategy: {systemName} • Version: {variant.version ?? variant.version_number}</div>
+      <div className="page-title mb-2">{variant.display_name || variant.name}</div>
+      <div className="subline mb-4">Variant v{variant.version}</div>
+
+      {variant.description && (
+        <div className="card p-4 mb-4">
+          <div className="card-title mb-2">Description</div>
+          <div className="meta whitespace-pre-wrap">{variant.description}</div>
+        </div>
+      )}
 
       <div className="card p-0">
         <div className="card-header px-4 py-3 flex items-center justify-between">
           <div className="card-title">Runs for this variant</div>
+          <div>
+            <button className="btn" onClick={() => setOpenRun(true)}>+ New Run</button>
+          </div>
         </div>
         <div className="p-0">
           <DataTable
@@ -76,6 +86,20 @@ export default function VariantPage() {
           />
         </div>
       </div>
+
+      {openRun && variantId && (
+        <CreateRunModal
+          open={openRun}
+          variantId={variantId}
+          onClose={() => setOpenRun(false)}
+          onCreated={async () => {
+            try {
+              const refreshed = await listRunsForVariant(variantId);
+              setRuns(refreshed);
+            } catch {}
+          }}
+        />
+      )}
     </div>
   );
 }

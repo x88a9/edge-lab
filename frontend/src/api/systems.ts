@@ -1,27 +1,27 @@
-import client from './client';
+import apiClient from './apiClient';
 import { System, Variant } from '../types';
 
 export async function listSystems(): Promise<System[]> {
-  const { data } = await client.get('/systems');
+  const { data } = await apiClient.get('/systems');
   return data;
 }
 
 export async function getSystem(systemId: string): Promise<System> {
-  const { data } = await client.get(`/systems/${systemId}`);
+  const { data } = await apiClient.get(`/systems/${systemId}`);
   return data;
 }
 
 export async function listVariantsForSystem(systemId: string): Promise<Variant[]> {
-  const { data } = await client.get(`/systems/${systemId}/variants`);
+  const { data } = await apiClient.get(`/systems/${systemId}/variants`);
   return data;
 }
 
 export async function createSystem(payload: {
-  user_id: string;
   name: string;
   display_name: string;
   asset: string;
+  description?: string;
 }): Promise<System> {
-  const { data } = await client.post('/systems', payload);
+  const { data } = await apiClient.post('/systems/', payload);
   return data;
 }

@@ -40,6 +40,7 @@ export default function VariantsPage() {
           { key: 'id', label: 'ID', muted: true },
           { key: 'strategy_id', label: 'Strategy', render: (v: any) => strategyNames[v.strategy_id] || v.strategy_id },
           { key: 'version', label: 'Version', render: (v: any) => v.version ?? v.version_number },
+          { key: 'description', label: 'Description' },
           { key: 'actions', label: 'Actions', render: (v: any) => (
             <div className="flex justify-end">
               <button className="btn" onClick={(e) => { e.stopPropagation(); setSelectedVariantId(v.id); setOpenRun(true); }}>+ New Run</button>

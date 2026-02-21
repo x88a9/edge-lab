@@ -106,21 +106,28 @@ export default function WalkForwardPanel({ runId }: Props) {
             <g>
               <rect x={pad} y={pad} width={180} height={24} fill="rgba(0,0,0,0.2)" />
               <circle cx={pad+10} cy={pad+12} r={4} fill="#22c55e" />
-              <text x={pad+20} y={pad+16} className="meta">Train Expectancy (R)</text>
+-              <text x={pad+20} y={pad+16} className="meta">Train Expectancy (R)</text>
++              <text x={pad+20} y={pad+16} className="meta" fill="#fff">Train Expectancy (R)</text>
               <circle cx={pad+130} cy={pad+12} r={4} fill="#f59e0b" />
-              <text x={pad+140} y={pad+16} className="meta">Test</text>
+-              <text x={pad+140} y={pad+16} className="meta">Test</text>
++              <text x={pad+140} y={pad+16} className="meta" fill="#fff">Test</text>
             </g>
             {/* Axes labels */}
-            <text x={width/2} y={height-2} textAnchor="middle" className="meta">Window Index</text>
-            <text x={-height/2} y={12} transform={`rotate(-90)`} textAnchor="middle" className="meta">Expectancy (R)</text>
+-            <text x={width/2} y={height-2} textAnchor="middle" className="meta">Window Index</text>
+-            <text x={-height/2} y={12} transform={`rotate(-90)`} textAnchor="middle" className="meta">Expectancy (R)</text>
++            <text x={width/2} y={height-2} textAnchor="middle" className="meta" fill="#fff">Window Index</text>
++            <text x={-height/2} y={12} transform={`rotate(-90)`} textAnchor="middle" className="meta" fill="#fff">Expectancy (R)</text>
             {/* Tooltip */}
             {hoverIdx != null && (
               <g>
                 <line x1={scaleX(hoverIdx)} x2={scaleX(hoverIdx)} y1={pad} y2={height-pad} stroke="#9ca3af" strokeDasharray="2,2" />
                 <rect x={Math.min(width-pad-140, Math.max(pad, scaleX(hoverIdx)-70))} y={pad+24} width={140} height={46} fill="rgba(0,0,0,0.6)" stroke="#374151" />
-                <text x={Math.min(width-pad-135, Math.max(pad+5, scaleX(hoverIdx)-65))} y={pad+40} className="meta">W {hoverIdx}</text>
-                <text x={Math.min(width-pad-135, Math.max(pad+5, scaleX(hoverIdx)-65))} y={pad+56} className="meta">T: {formatFloat(windows[hoverIdx].train_expectancy, 4)} R / S: {formatFloat(windows[hoverIdx].train_sharpe, 3)}</text>
-                <text x={Math.min(width-pad-135, Math.max(pad+5, scaleX(hoverIdx)-65))} y={pad+72} className="meta">t: {formatFloat(windows[hoverIdx].test_expectancy, 4)} R / s: {formatFloat(windows[hoverIdx].test_sharpe, 3)}</text>
+-                <text x={Math.min(width-pad-135, Math.max(pad+5, scaleX(hoverIdx)-65))} y={pad+40} className="meta">W {hoverIdx}</text>
+-                <text x={Math.min(width-pad-135, Math.max(pad+5, scaleX(hoverIdx)-65))} y={pad+56} className="meta">T: {formatFloat(windows[hoverIdx].train_expectancy, 4)} R / S: {formatFloat(windows[hoverIdx].train_sharpe, 3)}</text>
+-                <text x={Math.min(width-pad-135, Math.max(pad+5, scaleX(hoverIdx)-65))} y={pad+72} className="meta">t: {formatFloat(windows[hoverIdx].test_expectancy, 4)} R / s: {formatFloat(windows[hoverIdx].test_sharpe, 3)}</text>
++                <text x={Math.min(width-pad-135, Math.max(pad+5, scaleX(hoverIdx)-65))} y={pad+40} className="meta" fill="#fff">W {hoverIdx}</text>
++                <text x={Math.min(width-pad-135, Math.max(pad+5, scaleX(hoverIdx)-65))} y={pad+56} className="meta" fill="#fff">T: {formatFloat(windows[hoverIdx].train_expectancy, 4)} R / S: {formatFloat(windows[hoverIdx].train_sharpe, 3)}</text>
++                <text x={Math.min(width-pad-135, Math.max(pad+5, scaleX(hoverIdx)-65))} y={pad+72} className="meta" fill="#fff">t: {formatFloat(windows[hoverIdx].test_expectancy, 4)} R / s: {formatFloat(windows[hoverIdx].test_sharpe, 3)}</text>
               </g>
             )}
           </svg>
@@ -130,8 +137,10 @@ export default function WalkForwardPanel({ runId }: Props) {
             <line x1={pad} x2={width-pad} y1={scaleYVol(0)} y2={scaleYVol(0)} stroke="#374151" strokeWidth={0.8} />
             <path d={dVolTrain} fill="none" stroke="#22c55e" strokeWidth={1.5} />
             <path d={dVolTest} fill="none" stroke="#fbbf24" strokeWidth={1.5} />
-            <text x={width/2} y={height-2} textAnchor="middle" className="meta">Window Index</text>
-            <text x={-height/2} y={12} transform={`rotate(-90)`} textAnchor="middle" className="meta">Volatility (approx)</text>
+-            <text x={width/2} y={height-2} textAnchor="middle" className="meta">Window Index</text>
+-            <text x={-height/2} y={12} transform={`rotate(-90)`} textAnchor="middle" className="meta">Volatility (approx)</text>
++            <text x={width/2} y={height-2} textAnchor="middle" className="meta" fill="#fff">Window Index</text>
++            <text x={-height/2} y={12} transform={`rotate(-90)`} textAnchor="middle" className="meta" fill="#fff">Volatility (approx)</text>
           </svg>
 
           {/* Stability indicator */}
@@ -139,8 +148,10 @@ export default function WalkForwardPanel({ runId }: Props) {
             {windows.map((d, i) => (
               <circle key={i} cx={scaleX(i)} cy={60} r={4} fill={d.test_expectancy < d.train_expectancy ? '#ef4444' : '#22c55e'} />
             ))}
-            <text x={width/2} y={118} textAnchor="middle" className="meta">Window Index</text>
-            <text x={-60} y={12} transform={`rotate(-90)`} textAnchor="middle" className="meta">Stability</text>
+-            <text x={width/2} y={118} textAnchor="middle" className="meta">Window Index</text>
+-            <text x={-60} y={12} transform={`rotate(-90)`} textAnchor="middle" className="meta">Stability</text>
++            <text x={width/2} y={118} textAnchor="middle" className="meta" fill="#fff">Window Index</text>
++            <text x={-60} y={12} transform={`rotate(-90)`} textAnchor="middle" className="meta" fill="#fff">Stability</text>
           </svg>
         </div>
       )}

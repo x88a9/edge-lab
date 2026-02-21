@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import DataTable from '../components/DataTable';
 import { getSystem, listVariantsForSystem } from '../api/systems';
+import CreateVariantModal from '../components/modals/CreateVariantModal';
 
 export default function SystemPage() {
   const { systemId } = useParams();
@@ -10,6 +11,7 @@ export default function SystemPage() {
   const [error, setError] = useState<string | null>(null);
   const [system, setSystem] = useState<any>(null);
   const [variants, setVariants] = useState<any[]>([]);
+  const [openVariant, setOpenVariant] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -44,9 +46,19 @@ export default function SystemPage() {
       <div className="page-title mb-2">{systemTitle}</div>
       <div className="subline mb-4">Asset: {system.asset} • ID: {system.id}</div>
 
+      {system.description ? (
+        <div className="card p-4 mb-4">
+          <div className="card-title mb-2">Description</div>
+          <div className="meta whitespace-pre-wrap">{system.description}</div>
+        </div>
+      ) : null}
+
       <div className="card p-0">
         <div className="card-header px-4 py-3 flex items-center justify-between">
-          <div className="card-title">Variants for this strategy</div>
+          <div className="card-title">Variants for this system</div>
+          <div>
+            <button className="btn" onClick={() => setOpenVariant(true)}>+ New Variant</button>
+          </div>
         </div>
         <div className="p-0">
           <DataTable
@@ -62,6 +74,20 @@ export default function SystemPage() {
           />
         </div>
       </div>
+
+      {openVariant && (
+        <CreateVariantModal
+          open={openVariant}
+          strategyId={system.id}
+          onClose={() => setOpenVariant(false)}
+          onCreated={async () => {
+            try {
+              const refreshed = await listVariantsForSystem(system.id);
+              setVariants(refreshed);
+            } catch {}
+          }}
+        />
+      )}
     </div>
   );
 }

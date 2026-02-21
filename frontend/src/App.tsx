@@ -7,19 +7,22 @@ import VariantsPage from './pages/VariantsPage';
 import TradesPage from './pages/TradesPage';
 import VariantPage from './pages/VariantPage';
 import SystemPage from './pages/SystemPage';
+import Login from './pages/Login';
+import { ProtectedRoute } from './auth/AuthContext';
 
 export default function App() {
   return (
     <Layout>
       <Routes>
+        <Route path="/login" element={<Login />} />
         <Route path="/" element={<Navigate to="/runs" replace />} />
-        <Route path="/runs" element={<RunsList />} />
-        <Route path="/runs/:runId" element={<RunPage />} />
-        <Route path="/systems" element={<SystemsPage />} />
-        <Route path="/systems/:systemId" element={<SystemPage />} />
-        <Route path="/variants" element={<VariantsPage />} />
-        <Route path="/variants/:variantId" element={<VariantPage />} />
-        <Route path="/trades" element={<TradesPage />} />
+        <Route path="/runs" element={<ProtectedRoute><RunsList /></ProtectedRoute>} />
+        <Route path="/runs/:runId" element={<ProtectedRoute><RunPage /></ProtectedRoute>} />
+        <Route path="/systems" element={<ProtectedRoute><SystemsPage /></ProtectedRoute>} />
+        <Route path="/systems/:systemId" element={<ProtectedRoute><SystemPage /></ProtectedRoute>} />
+        <Route path="/variants" element={<ProtectedRoute><VariantsPage /></ProtectedRoute>} />
+        <Route path="/variants/:variantId" element={<ProtectedRoute><VariantPage /></ProtectedRoute>} />
+        <Route path="/trades" element={<ProtectedRoute><TradesPage /></ProtectedRoute>} />
       </Routes>
     </Layout>
   );
