@@ -66,8 +66,8 @@ class TradeCreate(BaseModel):
     stop_loss: float
     size: float
     direction: str
-    timestamp: Optional[datetime] = None
-    timeframe: Optional[str] = None
+    timestamp: datetime | None = None
+    timeframe: str | None = None
 
 class TradeUpdate(BaseModel):
     entry_price: float
@@ -96,12 +96,20 @@ def create_trade(
     stop = trade_data.stop_loss
     direction = trade_data.direction.lower()
 
+    if direction not in ["long", "short"]:
+        raise HTTPException(status_code=400, detail="Direction must be long or short.")
+
+    if entry == stop:
+        raise HTTPException(status_code=400, detail="Stop loss cannot equal entry.")
+
     if direction == "long":
         raw_return = (exit_ - entry) / entry
-        r_multiple = (exit_ - entry) / (entry - stop)
+        risk = entry - stop
+        r_multiple = (exit_ - entry) / risk
     else:
         raw_return = (entry - exit_) / entry
-        r_multiple = (entry - exit_) / (stop - entry)
+        risk = stop - entry
+        r_multiple = (entry - exit_) / risk
 
     log_return = math.log(1 + raw_return)
     is_win = r_multiple > 0
@@ -126,7 +134,10 @@ def create_trade(
     db.commit()
     db.refresh(trade)
 
-    return {"id": trade.id, "r_multiple": r_multiple}
+    return {
+        "id": trade.id,
+        "r_multiple": r_multiple,
+    }
 
 
 # ==========================================================

@@ -166,6 +166,7 @@ def metrics(
     return MetricsEngine.generate_for_run(
         db=db,
         run_id=uuid.UUID(run_id),
+        user_id=current_user.id,
     )
 
 
@@ -228,6 +229,7 @@ def walk_forward(
     return WalkForwardEngine.run(
         db=db,
         run_id=uuid.UUID(run_id),
+        user_id=current_user.id,
     )
 
 
@@ -246,6 +248,7 @@ def regime_detection(
     return RegimeDetectionEngine.detect(
         db=db,
         run_id=uuid.UUID(run_id),
+        user_id=current_user.id,
     )
 
 
@@ -264,6 +267,7 @@ def kelly_simulation(
     return KellySimulationEngine.generate_for_run(
         db=db,
         run_id=uuid.UUID(run_id),
+        user_id=current_user.id,
     )
 
 
@@ -282,6 +286,7 @@ def monte_carlo(
     return MonteCarloEngine.bootstrap_run(
         db=db,
         run_id=uuid.UUID(run_id),
+        user_id=current_user.id,
         simulations=3000,
     )
 
@@ -301,6 +306,7 @@ def risk_of_ruin(
     return RiskOfRuinEngine.simulate(
         db=db,
         run_id=uuid.UUID(run_id),
+        user_id=current_user.id,
         simulations=3000,
         position_fraction=0.01,
         ruin_threshold=0.7,
