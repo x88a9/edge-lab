@@ -10,7 +10,7 @@ class RiskOfRuinEngine:
         db: Session,
         run_id,
         user_id,
-        simulations: int = 10000,
+        simulations: int = 5000,
         position_fraction: float = 0.01,
         ruin_threshold: float = 0.7,
         max_trades: int = 500,

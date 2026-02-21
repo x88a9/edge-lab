@@ -11,7 +11,7 @@ class KellySimulationEngine:
         run_id,
         user_id,
         fractions=None,
-        simulations: int = 5000,
+        simulations: int = 1000,
         ruin_threshold: float = 0.7,
     ):
         if fractions is None:
