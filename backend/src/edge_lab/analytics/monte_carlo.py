@@ -5,6 +5,8 @@ from edge_lab.persistence.models import Trade
 
 class MonteCarloEngine:
 
+    BASE_RISK_FRACTION = 0.01
+
     @staticmethod
     def bootstrap_run(
         db: Session,
@@ -24,18 +26,18 @@ class MonteCarloEngine:
         if not trades:
             raise ValueError("No trades found for run.")
 
-        log_returns = np.array([t.log_return for t in trades])
-        n = len(log_returns)
+        r_values = np.array([t.r_multiple for t in trades])
+        base_returns = MonteCarloEngine.BASE_RISK_FRACTION * r_values
+        n = len(base_returns)
 
         final_returns = []
         max_drawdowns = []
 
         for _ in range(simulations):
 
-            sample = np.random.choice(log_returns, size=n, replace=True)
+            sample = np.random.choice(base_returns, size=n, replace=True)
 
-            cumulative_log = np.cumsum(sample)
-            equity = np.exp(cumulative_log)
+            equity = np.cumprod(1 + sample)
 
             final_return = equity[-1] - 1
 

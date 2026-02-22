@@ -6,6 +6,8 @@ from edge_lab.analytics.risk_of_ruin import RiskOfRuinEngine
 
 class KellySimulationEngine:
 
+    BASE_RISK_FRACTION = 0.01  # must match equity model
+
     @staticmethod
     def evaluate_fractions(
         db: Session,
@@ -16,9 +18,9 @@ class KellySimulationEngine:
         use_ror_constraint: bool = True,
     ):
         if fractions is None:
-            fractions = np.linspace(0.0, 0.2, 50)  # finer grid
+            fractions = np.linspace(0.0, 5.0, 50)
+            # 5x of base risk (0–5% effective risk)
 
-        # Load trades once
         trades = (
             db.query(Trade)
             .filter(
@@ -31,27 +33,32 @@ class KellySimulationEngine:
         if not trades:
             raise ValueError("No trades found for run.")
 
-        raw_returns = np.array([t.raw_return for t in trades])
+        r_values = np.array([t.r_multiple for t in trades])
+
+        # Effective system returns
+        base_returns = KellySimulationEngine.BASE_RISK_FRACTION * r_values
 
         results = []
 
         for f in fractions:
 
-            # Avoid invalid region where 1 + f*r <= 0
-            if np.any(1 + f * raw_returns <= 0):
+            effective_returns = f * base_returns
+
+            if np.any(1 + effective_returns <= 0):
                 continue
 
-            mean_log_growth = float(np.mean(np.log(1 + f * raw_returns)))
+            mean_log_growth = float(
+                np.mean(np.log(1 + effective_returns))
+            )
 
             entry = {
                 "fraction": float(f),
                 "mean_log_growth": mean_log_growth,
             }
 
-            # Optional: compute ruin risk for constraint
             if use_ror_constraint and f > 0:
                 ror = RiskOfRuinEngine.simulate_from_returns(
-                    raw_returns=raw_returns,
+                    raw_returns=base_returns,
                     simulations=1000,
                     position_fraction=float(f),
                     ruin_threshold=ruin_threshold,
@@ -68,10 +75,8 @@ class KellySimulationEngine:
         if not results:
             raise ValueError("No valid Kelly fractions found.")
 
-        # True Kelly optimal = max mean log growth
         best_growth = max(results, key=lambda x: x["mean_log_growth"])
 
-        # Safe Kelly (ruin constraint)
         safe_candidates = [
             r for r in results
             if r["ruin_probability"] is not None

@@ -6,13 +6,13 @@ from edge_lab.analytics.metrics import MetricsEngine
 
 class WalkForwardEngine:
 
+    BASE_RISK_FRACTION = 0.01
+
     @staticmethod
     def run(
         db: Session,
         run_id,
         user_id,
-        train_size: int = 10,
-        test_size: int = 10,
     ):
 
         trades = (
@@ -28,32 +28,33 @@ class WalkForwardEngine:
         if not trades:
             return []
 
-        train_size = int(len(trades) * 0.6)
-        test_size = int(len(trades) * 0.4)
+        r_values = np.array([t.r_multiple for t in trades])
+        returns = WalkForwardEngine.BASE_RISK_FRACTION * r_values
 
-        if len(trades) < train_size + test_size:
+        train_size = int(len(returns) * 0.6)
+        test_size = int(len(returns) * 0.4)
+
+        if len(returns) < train_size + test_size:
             return []
-
-        log_returns = np.array([t.log_return for t in trades])
-        raw_returns = np.exp(log_returns) - 1
 
         results = []
         start = 0
 
-        while start + train_size + test_size <= len(trades):
+        while start + train_size + test_size <= len(returns):
 
-            train_slice = raw_returns[start:start + train_size]
-            test_slice = raw_returns[start + train_size:start + train_size + test_size]
+            train_slice = returns[start:start + train_size]
+            test_slice = returns[start + train_size:start + train_size + test_size]
 
             train_expectancy = float(np.mean(train_slice))
             test_expectancy = float(np.mean(test_slice))
 
             train_sharpe = float(
-                MetricsEngine.sharpe(np.log(1 + train_slice))
-            )
+                MetricsEngine.sharpe(train_slice)
+            ) if np.std(train_slice) > 0 else 0.0
+
             test_sharpe = float(
-                MetricsEngine.sharpe(np.log(1 + test_slice))
-            )
+                MetricsEngine.sharpe(test_slice)
+            ) if np.std(test_slice) > 0 else 0.0
 
             results.append({
                 "train_expectancy": train_expectancy,

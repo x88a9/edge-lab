@@ -6,6 +6,8 @@ from edge_lab.persistence.models import Trade
 
 class EquityBuilder:
 
+    BASE_RISK_FRACTION = 0.01  # must match Kelly + RuR
+
     @staticmethod
     def build_equity_series(
         db: Session,
@@ -25,14 +27,15 @@ class EquityBuilder:
         if not trades:
             raise ValueError("No trades found for run.")
 
-        log_returns = np.array([t.log_return for t in trades])
+        r_values = np.array([t.r_multiple for t in trades])
 
-        cumulative_log = np.cumsum(log_returns)
+        returns = EquityBuilder.BASE_RISK_FRACTION * r_values
+
+        cumulative_log = np.cumsum(np.log(1 + returns))
         equity = np.exp(cumulative_log)
 
         df = pd.DataFrame({
-            "log_return": log_returns,
-            "cumulative_log": cumulative_log,
+            "strategy_return": returns,
             "equity": equity,
         })
 

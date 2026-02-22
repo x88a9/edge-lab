@@ -60,14 +60,10 @@ class RiskOfRuinEngine:
         run_id,
         user_id,
         simulations: int = 10000,
-        position_fraction: float = 0.01,
+        position_fraction: float = 1.0,
         ruin_threshold: float = 0.7,
         max_trades: int = 500,
     ):
-        """
-        Wrapper that loads trades once.
-        """
-
         trades = (
             db.query(Trade)
             .filter(
@@ -80,10 +76,12 @@ class RiskOfRuinEngine:
         if not trades:
             raise ValueError("No trades found for run.")
 
-        raw_returns = np.array([t.raw_return for t in trades])
+        r_values = np.array([t.r_multiple for t in trades])
+
+        base_returns = 0.01 * r_values
 
         return RiskOfRuinEngine.simulate_from_returns(
-            raw_returns=raw_returns,
+            raw_returns=base_returns,
             simulations=simulations,
             position_fraction=position_fraction,
             ruin_threshold=ruin_threshold,
