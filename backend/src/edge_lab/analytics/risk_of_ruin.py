@@ -6,18 +6,66 @@ from edge_lab.persistence.models import Trade
 class RiskOfRuinEngine:
 
     @staticmethod
-    def simulate(
-        db: Session,
-        run_id,
-        user_id,
-        simulations: int = 5000,
+    def simulate_from_returns(
+        raw_returns: np.ndarray,
+        simulations: int = 10000,
         position_fraction: float = 0.01,
         ruin_threshold: float = 0.7,
         max_trades: int = 500,
     ):
         """
-        position_fraction: fraction of capital risked per trade
-        ruin_threshold: capital level considered ruin
+        Fully vectorized simulation.
+        """
+
+        if raw_returns.size == 0:
+            raise ValueError("No returns provided.")
+
+        # Draw random trade sequences
+        choices = np.random.choice(
+            raw_returns,
+            size=(simulations, max_trades),
+            replace=True,
+        )
+
+        # Apply position sizing
+        trade_returns = position_fraction * choices
+
+        # Compute capital paths
+        capital_paths = np.cumprod(1 + trade_returns, axis=1)
+
+        # Detect ruin
+        ruin_events = capital_paths <= ruin_threshold
+        ruined = np.any(ruin_events, axis=1)
+        ruin_probability = np.mean(ruined)
+
+        # Final capital
+        final_capitals = capital_paths[:, -1]
+
+        # Drawdown calculation
+        peaks = np.maximum.accumulate(capital_paths, axis=1)
+        drawdowns = capital_paths / peaks - 1
+        max_drawdowns = np.min(drawdowns, axis=1)
+
+        return {
+            "ruin_probability": float(ruin_probability),
+            "mean_final_capital": float(np.mean(final_capitals)),
+            "median_final_capital": float(np.median(final_capitals)),
+            "mean_max_drawdown": float(np.mean(max_drawdowns)),
+            "worst_case_drawdown": float(np.min(max_drawdowns)),
+        }
+
+    @staticmethod
+    def simulate(
+        db: Session,
+        run_id,
+        user_id,
+        simulations: int = 10000,
+        position_fraction: float = 0.01,
+        ruin_threshold: float = 0.7,
+        max_trades: int = 500,
+    ):
+        """
+        Wrapper that loads trades once.
         """
 
         trades = (
@@ -34,40 +82,10 @@ class RiskOfRuinEngine:
 
         raw_returns = np.array([t.raw_return for t in trades])
 
-        ruin_count = 0
-        final_capitals = []
-        max_drawdowns = []
-
-        for _ in range(simulations):
-
-            capital = 1.0
-            peak = 1.0
-            max_dd = 0.0
-
-            for _ in range(max_trades):
-
-                r = np.random.choice(raw_returns)
-
-                trade_return = position_fraction * r
-                capital *= (1 + trade_return)
-
-                peak = max(peak, capital)
-                dd = capital / peak - 1
-                max_dd = min(max_dd, dd)
-
-                if capital <= ruin_threshold:
-                    ruin_count += 1
-                    break
-
-            final_capitals.append(capital)
-            max_drawdowns.append(max_dd)
-
-        ruin_probability = ruin_count / simulations
-
-        return {
-            "ruin_probability": float(ruin_probability),
-            "mean_final_capital": float(np.mean(final_capitals)),
-            "median_final_capital": float(np.median(final_capitals)),
-            "mean_max_drawdown": float(np.mean(max_drawdowns)),
-            "worst_case_drawdown": float(np.min(max_drawdowns)),
-        }
+        return RiskOfRuinEngine.simulate_from_returns(
+            raw_returns=raw_returns,
+            simulations=simulations,
+            position_fraction=position_fraction,
+            ruin_threshold=ruin_threshold,
+            max_trades=max_trades,
+        )

@@ -1,5 +1,6 @@
 import numpy as np
 from sqlalchemy.orm import Session
+from edge_lab.persistence.models import Trade
 from edge_lab.analytics.risk_of_ruin import RiskOfRuinEngine
 
 
@@ -17,14 +18,27 @@ class KellySimulationEngine:
         if fractions is None:
             fractions = np.linspace(0.005, 0.2, 20)
 
+        # Load trades once
+        trades = (
+            db.query(Trade)
+            .filter(
+                Trade.run_id == run_id,
+                Trade.user_id == user_id,
+            )
+            .all()
+        )
+
+        if not trades:
+            raise ValueError("No trades found for run.")
+
+        raw_returns = np.array([t.raw_return for t in trades])
+
         results = []
 
         for f in fractions:
 
-            result = RiskOfRuinEngine.simulate(
-                db=db,
-                run_id=run_id,
-                user_id=user_id,
+            result = RiskOfRuinEngine.simulate_from_returns(
+                raw_returns=raw_returns,
                 simulations=simulations,
                 position_fraction=float(f),
                 ruin_threshold=ruin_threshold,
