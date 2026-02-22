@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { EquityPoint, MetricsSnapshot, Run, Trade, Variant, System } from '../types';
-import { getRun, listTradesForRun, getMetrics, getEquity } from '../api/runs';
+import { getRun, listTradesForRun } from '../api/runs';
 import { getVariant } from '../api/variants';
 import { getSystem } from '../api/systems';
 
@@ -20,16 +20,14 @@ export default function useRun(runId?: string) {
       setLoading(true);
       setError(null);
       try {
-        const [r, t, m, e] = await Promise.all([
+        const [r, t] = await Promise.all([
           getRun(runId),
           listTradesForRun(runId),
-          getMetrics(runId).catch(() => null),
-          getEquity(runId).catch(() => []),
         ]);
         setRun(r);
         setTrades(t);
-        setMetrics(m);
-        setEquity(e);
+        setMetrics(null);
+        setEquity([]);
 
         // Fetch variant and system display names for the run view
         try {

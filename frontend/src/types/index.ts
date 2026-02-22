@@ -66,6 +66,7 @@ export interface MetricsSnapshot {
   kelly_f?: number;
   log_growth?: number;
   max_drawdown_R?: number;
+  r_multiples?: number[];
 }
 
 export interface EquityPoint {
@@ -96,6 +97,7 @@ export interface RiskOfRuinSummary {
 export interface KellyResultPoint {
   fraction: number;
   mean_final_capital: number;
+  mean_log_growth?: number | null;
   ruin_probability: number;
   mean_max_drawdown: number;
 }
@@ -116,4 +118,16 @@ export interface WalkForwardWindow {
 export interface RegimeDetectionResult {
   labels: number[];
   centroids: number[][];
+}
+
+export interface AnalyticsSnapshot {
+  metrics_json?: MetricsSnapshot | null;
+  equity_json?: any;
+  walk_forward_json?: WalkForwardWindow[] | null;
+  monte_carlo_json?: MonteCarloSummary | null;
+  risk_of_ruin_json?: RiskOfRuinSummary | null;
+  regime_json?: RegimeDetectionResult | null;
+  kelly_json?: KellySimulationResult | null;
+  is_dirty: boolean;
+  updated_at?: string;
 }

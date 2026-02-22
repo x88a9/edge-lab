@@ -1,23 +1,15 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { WalkForwardWindow } from '../../types';
-import { getWalkForward } from '../../api/runs';
 import { formatFloat } from '../../utils/format';
 
-interface Props { runId: string; }
+interface Props { windows: WalkForwardWindow[] | null | undefined; }
 
-export default function WalkForwardPanel({ runId }: Props) {
-  const [data, setData] = useState<WalkForwardWindow[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+export default function WalkForwardPanel({ windows: incoming }: Props) {
+  const [data, setData] = useState<WalkForwardWindow[]>(() => Array.isArray(incoming) ? incoming : []);
   const [hoverIdx, setHoverIdx] = useState<number | null>(null);
-
   useEffect(() => {
-    setLoading(true);
-    getWalkForward(runId)
-      .then(setData)
-      .catch((err) => setError(err?.message || 'Failed to load walk-forward'))
-      .finally(() => setLoading(false));
-  }, [runId]);
+    setData(Array.isArray(incoming) ? incoming : []);
+  }, [incoming]);
 
   // Filter invalid windows and guard against NaN/null
   const windows = useMemo(() => (
@@ -52,22 +44,8 @@ export default function WalkForwardPanel({ runId }: Props) {
   const dTrain = windows.map((d, i) => `${i === 0 ? 'M' : 'L'} ${scaleX(i)} ${scaleYExp(d.train_expectancy)}`).join(' ');
   const dTest = windows.map((d, i) => `${i === 0 ? 'M' : 'L'} ${scaleX(i)} ${scaleYExp(d.test_expectancy)}`).join(' ');
 
-  // Approximate volatility per window via expectancy/sharpe (vol ≈ mean / sharpe)
-  const volTrain = windows.map(d => {
-    const s = d.train_sharpe ?? 0;
-    return s ? Math.abs(d.train_expectancy / s) : 0;
-  });
-  const volTest = windows.map(d => {
-    const s = d.test_sharpe ?? 0;
-    return s ? Math.abs(d.test_expectancy / s) : 0;
-  });
-
-  const minVol = volTrain.length || volTest.length ? Math.min(...volTrain, ...volTest, 0) : 0;
-  const maxVol = volTrain.length || volTest.length ? Math.max(...volTrain, ...volTest, 0.01) : 1;
-  const scaleYVol = (y: number) => height - pad - ((y - minVol) / Math.max(1e-9, maxVol - minVol)) * (height - pad * 2);
-
-  const dVolTrain = volTrain.map((v, i) => `${i === 0 ? 'M' : 'L'} ${scaleX(i)} ${scaleYVol(v)}`).join(' ');
-  const dVolTest = volTest.map((v, i) => `${i === 0 ? 'M' : 'L'} ${scaleX(i)} ${scaleYVol(v)}`).join(' ');
+  const dSharpeTrain = windows.map((d, i) => `${i === 0 ? 'M' : 'L'} ${scaleX(i)} ${scaleYSharpe(d.train_sharpe)}`).join(' ');
+  const dSharpeTest = windows.map((d, i) => `${i === 0 ? 'M' : 'L'} ${scaleX(i)} ${scaleYSharpe(d.test_sharpe)}`).join(' ');
 
   const degradation = useMemo(() => {
     const flags = windows.map(d => (d.test_expectancy < d.train_expectancy));
@@ -87,11 +65,9 @@ export default function WalkForwardPanel({ runId }: Props) {
 
   return (
     <div className="space-y-3">
-      {loading && <div className="meta">Loading…</div>}
-      {error && <div className="meta text-red-400">{error}</div>}
-      {!windows.length ? (
+      {!windows.length || windows.length < 2 ? (
         <div className="card p-3">
-          <div className="meta">No walk-forward windows computed for this run.</div>
+          <div className="meta">Insufficient windows for stability analysis</div>
         </div>
       ) : (
         <div className="space-y-2">
@@ -132,15 +108,12 @@ export default function WalkForwardPanel({ runId }: Props) {
             )}
           </svg>
 
-          {/* Volatility proxy chart */}
           <svg width={width} height={height} className="bg-neutral-900 border border-neutral-800">
-            <line x1={pad} x2={width-pad} y1={scaleYVol(0)} y2={scaleYVol(0)} stroke="#374151" strokeWidth={0.8} />
-            <path d={dVolTrain} fill="none" stroke="#22c55e" strokeWidth={1.5} />
-            <path d={dVolTest} fill="none" stroke="#fbbf24" strokeWidth={1.5} />
--            <text x={width/2} y={height-2} textAnchor="middle" className="meta">Window Index</text>
--            <text x={-height/2} y={12} transform={`rotate(-90)`} textAnchor="middle" className="meta">Volatility (approx)</text>
-+            <text x={width/2} y={height-2} textAnchor="middle" className="meta" fill="#fff">Window Index</text>
-+            <text x={-height/2} y={12} transform={`rotate(-90)`} textAnchor="middle" className="meta" fill="#fff">Volatility (approx)</text>
+            <line x1={pad} x2={width-pad} y1={scaleYSharpe(0)} y2={scaleYSharpe(0)} stroke="#374151" strokeWidth={0.8} />
+            <path d={dSharpeTrain} fill="none" stroke="#22c55e" strokeWidth={1.5} />
+            <path d={dSharpeTest} fill="none" stroke="#fbbf24" strokeWidth={1.5} />
+            <text x={width/2} y={height-2} textAnchor="middle" className="meta" fill="#fff">Window Index</text>
+            <text x={-height/2} y={12} transform={`rotate(-90)`} textAnchor="middle" className="meta" fill="#fff">Sharpe</text>
           </svg>
 
           {/* Stability indicator */}
@@ -159,7 +132,6 @@ export default function WalkForwardPanel({ runId }: Props) {
         <div className="card p-3"><div className="meta">Windows</div><div>{windows.length}</div></div>
         <div className="card p-3"><div className="meta">Stability</div><div>{degradation.total ? `${degradation.count} degrading / ${degradation.total}` : '—'}</div></div>
         <div className="card p-3"><div className="meta">Expectancy Range</div><div>{formatFloat(minExp, 4)} → {formatFloat(maxExp, 4)}</div></div>
-        <div className="card p-3"><div className="meta">Volatility Range</div><div>{formatFloat(minVol, 4)} → {formatFloat(maxVol, 4)}</div></div>
       </div>
     </div>
   );

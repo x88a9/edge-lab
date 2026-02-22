@@ -1,31 +1,22 @@
-import { useEffect, useMemo, useState } from 'react';
-import { Trade, MetricsSnapshot } from '../../types';
-import { listTradesForRun, getMetrics } from '../../api/runs';
+import { useMemo, useState } from 'react';
+import { MetricsSnapshot, Trade } from '../../types';
 import { formatFloat } from '../../utils/format';
 
 interface Props {
-  runId: string;
+  metricsJson: MetricsSnapshot | null;
+  trades?: Trade[];
 }
 
-export default function DistributionPanel({ runId }: Props) {
-  const [trades, setTrades] = useState<Trade[]>([]);
-  const [metrics, setMetrics] = useState<MetricsSnapshot | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+export default function DistributionPanel({ metricsJson, trades }: Props) {
   const [hoverBin, setHoverBin] = useState<number | null>(null);
-
-  useEffect(() => {
-    setLoading(true);
-    Promise.all([
-      listTradesForRun(runId).catch(() => []),
-      getMetrics(runId).catch(() => null),
-    ])
-      .then(([t, m]) => { setTrades(t); setMetrics(m); })
-      .catch((err) => setError(err?.message || 'Failed to load distribution'))
-      .finally(() => setLoading(false));
-  }, [runId]);
-
-  const rMultiples = useMemo(() => trades.map(t => t.r_multiple ?? (Math.exp(t.log_return) - 1)), [trades]);
+  const metrics = metricsJson ?? null;
+  const rMultiples = useMemo(() => {
+    if (Array.isArray(metrics?.r_multiples) && metrics!.r_multiples!.length) {
+      return metrics!.r_multiples!;
+    }
+    const fromTrades = (trades ?? []).map(t => t.r_multiple).filter((v): v is number => typeof v === 'number');
+    return fromTrades;
+  }, [metrics, trades]);
 
   const bins = useMemo(() => {
     if (!rMultiples.length) return [] as { x: number; c: number }[];
@@ -81,10 +72,8 @@ export default function DistributionPanel({ runId }: Props) {
 
   return (
     <div className="space-y-3">
-      {loading && <div className="meta">Loading…</div>}
-      {error && <div className="meta text-red-400">{error}</div>}
       {!rMultiples.length ? (
-        <div className="meta">No trade distribution available.</div>
+        <div className="meta">No distribution data available in snapshot.</div>
       ) : (
         <div className="space-y-2">
           <svg width={width} height={height} className="bg-neutral-900 border border-neutral-800" onMouseMove={handleMove} onMouseLeave={handleLeave}>

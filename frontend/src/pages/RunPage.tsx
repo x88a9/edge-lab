@@ -1,11 +1,11 @@
 import { useParams } from 'react-router-dom';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import useRun from '../hooks/useRun';
 import TradesTable from '../components/TradesTable';
 import StatusBadge from '../components/StatusBadge';
 import MetricCard from '../components/MetricCard';
 import { formatCurrency, formatPercent, formatSharpe, formatFloat, formatDate } from '../utils/format';
-import type { EquityPoint } from '../types';
+import type { AnalyticsSnapshot } from '../types';
 import AddTradeModal from '../components/modals/AddTradeModal';
 import FinishRunModal from '../components/modals/FinishRunModal';
 import CollapsibleSection from '../components/CollapsibleSection';
@@ -16,6 +16,7 @@ import RiskOfRuinPanel from '../components/analytics/RiskOfRuinPanel';
 import KellySimulationPanel from '../components/analytics/KellySimulationPanel';
 import WalkForwardPanel from '../components/analytics/WalkForwardPanel';
 import RegimeAnalysisPanel from '../components/analytics/RegimeAnalysisPanel';
+import { computeAnalytics, getAnalyticsSnapshot } from '../api/runs';
 
 export default function RunPage() {
   const { runId } = useParams();
@@ -23,6 +24,71 @@ export default function RunPage() {
   const [tab, setTab] = useState<'overview' | 'analytics' | 'trades'>('trades');
   const [addOpen, setAddOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [analytics, setAnalytics] = useState<AnalyticsSnapshot | null>(null);
+  const [analyticsLoading, setAnalyticsLoading] = useState(false);
+  const [analyticsError, setAnalyticsError] = useState<string | null>(null);
+  const [analyticsMissing, setAnalyticsMissing] = useState(false);
+  const [computing, setComputing] = useState(false);
+
+  const loadAnalytics = async () => {
+    if (!run?.id) return;
+    setAnalyticsLoading(true);
+    setAnalyticsError(null);
+    setAnalyticsMissing(false);
+    try {
+      const snap = await getAnalyticsSnapshot(run.id);
+      setAnalytics(snap || null);
+    } catch (e: any) {
+      const status = e?.response?.status;
+      if (status === 404) {
+        setAnalytics(null);
+        setAnalyticsMissing(true);
+      } else {
+        setAnalyticsError(e?.message || 'Failed to load analytics');
+      }
+    } finally {
+      setAnalyticsLoading(false);
+    }
+  };
+
+  const pollAnalyticsReady = async (maxTries = 20, intervalMs = 1500) => {
+    if (!run?.id) return;
+    setAnalyticsLoading(true);
+    setAnalyticsError(null);
+    setAnalyticsMissing(false);
+    for (let i = 0; i < maxTries; i++) {
+      try {
+        const snap = await getAnalyticsSnapshot(run.id);
+        setAnalytics(snap || null);
+        setAnalyticsLoading(false);
+        setAnalyticsMissing(false);
+        return;
+      } catch (e: any) {
+        const status = e?.response?.status;
+        if (status !== 404) {
+          setAnalyticsError(e?.message || 'Failed to load analytics');
+          setAnalyticsLoading(false);
+          return;
+        }
+        await new Promise((r) => setTimeout(r, intervalMs));
+      }
+    }
+    setAnalyticsMissing(true);
+    setAnalyticsLoading(false);
+  };
+
+  useEffect(() => {
+    if (tab === 'analytics') {
+      loadAnalytics();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tab, run?.id]);
+  useEffect(() => {
+    if (run?.id) {
+      loadAnalytics();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [run?.id]);
 
   if (!run) return <div className="p-4">Loading...</div>;
 
@@ -71,32 +137,35 @@ export default function RunPage() {
             </div>
             <div className="card p-4">
               <div className="section-title mb-2">Metrics</div>
-              {!metrics ? (
+              {(() => {
+                const overviewMetrics = metrics ?? (analytics?.metrics_json ?? null);
+                return !overviewMetrics ? (
                 <div className="meta">No metrics snapshot yet.</div>
               ) : (
                 <div className="grid grid-cols-2 gap-3">
-                  {metrics.total_trades != null && <MetricCard label="Total Trades" value={metrics.total_trades} />}
-                  {metrics.wins != null && <MetricCard label="Wins" value={metrics.wins} />}
-                  {metrics.losses != null && <MetricCard label="Losses" value={metrics.losses} />}
-                  {metrics.win_rate != null && <MetricCard label="Win Rate" value={formatPercent(metrics.win_rate, 2)} />}
-                  {metrics.total_R != null && <MetricCard label="Total R" value={formatFloat(metrics.total_R, 4)} />}
-                  {metrics.avg_R != null && <MetricCard label="Avg R" value={formatFloat(metrics.avg_R, 4)} />}
-                  {metrics.avg_win_R != null && <MetricCard label="Avg Win R" value={formatFloat(metrics.avg_win_R, 4)} />}
-                  {metrics.avg_loss_R != null && <MetricCard label="Avg Loss R" value={formatFloat(metrics.avg_loss_R, 4)} />}
-                  {metrics.expectancy_R != null && <MetricCard label="Expectancy (R)" value={formatFloat(metrics.expectancy_R, 4)} />}
-                  {metrics.volatility_R != null && <MetricCard label="Volatility (R)" value={formatFloat(metrics.volatility_R, 4)} />}
-                  {metrics.kelly_f != null && <MetricCard label="Kelly Fraction" value={formatPercent(metrics.kelly_f, 2)} />}
-                  {metrics.log_growth != null && <MetricCard label="Log Growth" value={formatFloat(metrics.log_growth, 6)} />}
-                  {metrics.max_drawdown_R != null && <MetricCard label="Max Drawdown (R)" value={formatFloat(metrics.max_drawdown_R, 4)} />}
+                  {overviewMetrics.total_trades != null && <MetricCard label="Total Trades" value={overviewMetrics.total_trades} />}
+                  {overviewMetrics.wins != null && <MetricCard label="Wins" value={overviewMetrics.wins} />}
+                  {overviewMetrics.losses != null && <MetricCard label="Losses" value={overviewMetrics.losses} />}
+                  {overviewMetrics.win_rate != null && <MetricCard label="Win Rate" value={formatPercent(overviewMetrics.win_rate, 2)} />}
+                  {overviewMetrics.total_R != null && <MetricCard label="Total R" value={formatFloat(overviewMetrics.total_R, 4)} />}
+                  {overviewMetrics.avg_R != null && <MetricCard label="Avg R" value={formatFloat(overviewMetrics.avg_R, 4)} />}
+                  {overviewMetrics.avg_win_R != null && <MetricCard label="Avg Win R" value={formatFloat(overviewMetrics.avg_win_R, 4)} />}
+                  {overviewMetrics.avg_loss_R != null && <MetricCard label="Avg Loss R" value={formatFloat(overviewMetrics.avg_loss_R, 4)} />}
+                  {overviewMetrics.expectancy_R != null && <MetricCard label="Expectancy (R)" value={formatFloat(overviewMetrics.expectancy_R, 4)} />}
+                  {overviewMetrics.volatility_R != null && <MetricCard label="Volatility (R)" value={formatFloat(overviewMetrics.volatility_R, 4)} />}
+                  {overviewMetrics.kelly_f != null && <MetricCard label="Kelly Fraction" value={formatPercent(overviewMetrics.kelly_f, 2)} />}
+                  {overviewMetrics.log_growth != null && <MetricCard label="Log Growth" value={formatFloat(overviewMetrics.log_growth, 6)} />}
+                  {overviewMetrics.max_drawdown_R != null && <MetricCard label="Max Drawdown (R)" value={formatFloat(overviewMetrics.max_drawdown_R, 4)} />}
                   {/* Legacy fields fallback if present */}
-                  {metrics.expectancy != null && <MetricCard label="Expectancy" value={formatFloat(metrics.expectancy, 6)} />}
-                  {metrics.sharpe != null && <MetricCard label="Sharpe" value={formatSharpe(metrics.sharpe)} />}
-                  {metrics.volatility != null && <MetricCard label="Volatility" value={formatPercent(metrics.volatility, 2)} />}
-                  {metrics.volatility_drag != null && <MetricCard label="Volatility Drag" value={formatPercent(metrics.volatility_drag, 2)} />}
-                  {metrics.max_drawdown != null && <MetricCard label="Max Drawdown" value={formatPercent(metrics.max_drawdown, 2)} />}
-                  {metrics.total_return != null && <MetricCard label="Total Return" value={formatPercent(metrics.total_return, 2)} />}
+                  {overviewMetrics.expectancy != null && <MetricCard label="Expectancy" value={formatFloat(overviewMetrics.expectancy, 6)} />}
+                  {overviewMetrics.sharpe != null && <MetricCard label="Sharpe" value={formatSharpe(overviewMetrics.sharpe)} />}
+                  {overviewMetrics.volatility != null && <MetricCard label="Volatility" value={formatPercent(overviewMetrics.volatility, 2)} />}
+                  {overviewMetrics.volatility_drag != null && <MetricCard label="Volatility Drag" value={formatPercent(overviewMetrics.volatility_drag, 2)} />}
+                  {overviewMetrics.max_drawdown != null && <MetricCard label="Max Drawdown" value={formatPercent(overviewMetrics.max_drawdown, 2)} />}
+                  {overviewMetrics.total_return != null && <MetricCard label="Total Return" value={formatPercent(overviewMetrics.total_return, 2)} />}
                 </div>
-              )}
+              );
+              })()}
             </div>
           </div>
         </section>
@@ -118,37 +187,74 @@ export default function RunPage() {
               </button>
             </div>
           </div>
-          <TradesTable trades={trades} onChange={setTrades} />
+          <TradesTable trades={trades as any} onChange={(updated) => setTrades(updated as any)} />
         </section>
       )}
 
       {tab === 'analytics' && (
         <section className="space-y-4">
-          {trades.length === 0 && (
+          <div className="flex items-center justify-between">
+            <div className="section-title">Analytics</div>
+            <div className="flex items-center gap-2">
+              {analytics?.is_dirty && <span className="badge-warning">Outdated</span>}
+              <button
+                className="btn-primary"
+                disabled={computing || analyticsLoading}
+                onClick={async () => {
+                  setComputing(true);
+                  try {
+                    await computeAnalytics(run!.id);
+                    await pollAnalyticsReady();
+                  } catch (e: any) {
+                    setAnalyticsError(e?.message || 'Failed to compute analytics');
+                  } finally {
+                    setComputing(false);
+                  }
+                }}
+              >
+                {computing ? 'Computing…' : 'Recompute Analytics'}
+              </button>
+            </div>
+          </div>
+          {analyticsLoading && <div className="meta">Loading analytics…</div>}
+          {analyticsError && <div className="meta text-danger">{analyticsError}</div>}
+          {analyticsMissing && (
             <div className="card p-3">
-              <div className="meta">No trades yet. Add trades to unlock analytics panels.</div>
+              <div className="meta">Analytics not computed yet</div>
             </div>
           )}
+          {!analyticsMissing && !analyticsLoading && (
+            <>
+              {trades.length === 0 && (
+                <div className="card p-3">
+                  <div className="meta">No trades yet. Add trades to unlock analytics panels.</div>
+                </div>
+              )}
+            </>
+          )}
           <CollapsibleSection title="Equity & Drawdown" defaultOpen>
-            <EquityDrawdownPanel runId={run.id} />
+            <EquityDrawdownPanel
+              equityJson={analytics?.equity_json}
+              metricsJson={analytics?.metrics_json ?? null}
+            />
           </CollapsibleSection>
           <CollapsibleSection title="Distribution" defaultOpen>
-            <DistributionPanel runId={run.id} />
+            <DistributionPanel metricsJson={analytics?.metrics_json ?? null} trades={trades as any} />
           </CollapsibleSection>
           <CollapsibleSection title="Monte Carlo" defaultOpen>
-            <MonteCarloPanel runId={run.id} />
+            <MonteCarloPanel summary={analytics?.monte_carlo_json ?? null} />
           </CollapsibleSection>
           <CollapsibleSection title="Risk of Ruin" defaultOpen>
-            <RiskOfRuinPanel runId={run.id} />
+            <RiskOfRuinPanel summary={analytics?.risk_of_ruin_json ?? null} kellyResults={analytics?.kelly_json ?? null} />
           </CollapsibleSection>
           <CollapsibleSection title="Kelly Simulation" defaultOpen>
-            <KellySimulationPanel runId={run.id} />
+            <KellySimulationPanel result={analytics?.kelly_json ?? null} />
           </CollapsibleSection>
           <CollapsibleSection title="Walk Forward Analysis" defaultOpen>
-            <WalkForwardPanel runId={run.id} />
+            <WalkForwardPanel windows={analytics?.walk_forward_json ?? []} />
           </CollapsibleSection>
           <CollapsibleSection title="Regime Analysis" defaultOpen>
-            <RegimeAnalysisPanel runId={run.id} />
+            <RegimeAnalysisPanel result={analytics?.regime_json ?? null} />
           </CollapsibleSection>
         </section>
       )}

@@ -1,30 +1,10 @@
-import { useEffect, useState } from 'react';
+import { useMemo } from 'react';
 import { MonteCarloSummary } from '../../types';
-import { getMonteCarlo } from '../../api/runs';
 import { formatPercent } from '../../utils/format';
 
-interface Props { runId: string; }
+interface Props { summary: MonteCarloSummary | null; }
 
-export default function MonteCarloPanel({ runId }: Props) {
-  const [summary, setSummary] = useState<MonteCarloSummary | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  const runSim = async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const s = await getMonteCarlo(runId);
-      setSummary(s);
-    } catch (e: any) {
-      setError(e?.message || 'Failed to run Monte Carlo');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => { runSim(); }, [runId]);
-
+export default function MonteCarloPanel({ summary }: Props) {
   const width = 700, height = 120, pad = 12;
   const minX = summary ? Math.min(summary.p5_final_return, summary.p95_final_return) : -0.5;
   const maxX = summary ? Math.max(summary.p5_final_return, summary.p95_final_return) : 0.5;
@@ -32,11 +12,6 @@ export default function MonteCarloPanel({ runId }: Props) {
 
   return (
     <div className="space-y-3">
-      <div className="flex items-center gap-3">
-        <button className="btn-primary" onClick={runSim}>Run Monte Carlo</button>
-        {loading && <div className="meta">Running…</div>}
-        {error && <div className="meta text-red-400">{error}</div>}
-      </div>
       {/* Summary visualization with axis labels and legend */}
       {summary ? (
         <svg width={width} height={height} className="bg-neutral-900 border border-neutral-800">

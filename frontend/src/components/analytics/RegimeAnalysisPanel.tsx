@@ -1,47 +1,22 @@
-import { useEffect, useMemo, useState } from 'react';
-import { RegimeDetectionResult, Trade } from '../../types';
-import { getRegimeDetection, listTradesForRun } from '../../api/runs';
-import { formatFloat } from '../../utils/format';
+import { useMemo } from 'react';
+import { RegimeDetectionResult } from '../../types';
 
-interface Props { runId: string; }
+interface Props { result: RegimeDetectionResult | null; }
 
-export default function RegimeAnalysisPanel({ runId }: Props) {
-  const [result, setResult] = useState<RegimeDetectionResult | null>(null);
-  const [trades, setTrades] = useState<Trade[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    setLoading(true);
-    Promise.all([
-      getRegimeDetection(runId).catch(() => null),
-      listTradesForRun(runId).catch(() => []),
-    ])
-      .then(([r, t]) => { setResult(r); setTrades(t); })
-      .catch((err) => setError(err?.message || 'Failed to load regime analysis'))
-      .finally(() => setLoading(false));
-  }, [runId]);
-
+export default function RegimeAnalysisPanel({ result }: Props) {
   const labels = result?.labels ?? [];
-  const timeframe = trades?.map(t => t.timestamp) ?? [];
   const width = 700, height = 160, pad = 12;
   const n = labels.length;
   const scaleX = (i: number) => pad + (i / Math.max(1, n-1)) * (width - pad * 2);
-
-  const expByRegime = useMemo(() => {
-    const bucket: Record<string, number[]> = {};
-    trades.forEach((t, i) => {
-      const regime = String(labels[i] ?? 'unknown');
-      (bucket[regime] ||= []).push(t.r_multiple ?? 0);
-    });
-    const entries = Object.entries(bucket);
-    return entries.map(([k, arr]) => ({ regime: k, expectancy: arr.length ? arr.reduce((a,b)=>a+b,0)/arr.length : 0, volatility: arr.length ? Math.sqrt(arr.reduce((a,b)=>a+b*b,0)/arr.length - Math.pow(arr.reduce((a,b)=>a+b,0)/arr.length,2)) : 0 }));
-  }, [labels, trades]);
+  const counts = useMemo(() => {
+    const c: Record<number, number> = {};
+    labels.forEach(l => { c[l] = (c[l] ?? 0) + 1; });
+    return c;
+  }, [labels]);
+  const centroids = result?.centroids ?? [];
 
   return (
     <div className="space-y-3">
-      {loading && <div className="meta">Loading…</div>}
-      {error && <div className="meta text-red-400">{error}</div>}
       {!labels.length ? (
         <div className="meta">No regime data available.</div>
       ) : (
@@ -51,15 +26,18 @@ export default function RegimeAnalysisPanel({ runId }: Props) {
           ))}
         </svg>
       )}
-      <div className="grid grid-cols-3 gap-3">
-        {expByRegime.map((r) => (
-          <div key={r.regime} className="card p-3">
-            <div className="meta">Regime {r.regime}</div>
-            <div>Expectancy: {formatFloat(r.expectancy, 4)}</div>
-            <div>Volatility: {formatFloat(r.volatility, 4)}</div>
-          </div>
-        ))}
-      </div>
+      {centroids.length ? (
+        <div className="grid grid-cols-3 gap-3">
+          {centroids.map((c, idx) => (
+            <div key={idx} className="card p-3">
+              <div className="meta">Regime {idx}</div>
+              <div>Count: {counts[idx] ?? 0}</div>
+              <div>Expectancy: {typeof c[1] === 'number' ? c[1].toFixed(4) : '—'}</div>
+              <div>Volatility: {typeof c[0] === 'number' ? c[0].toFixed(4) : '—'}</div>
+            </div>
+          ))}
+        </div>
+      ) : null}
     </div>
   );
 }

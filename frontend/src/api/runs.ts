@@ -1,5 +1,5 @@
 import apiClient from './apiClient';
-import { Run, MetricsSnapshot, EquityPoint, Trade, MonteCarloSummary, RiskOfRuinSummary, KellySimulationResult, WalkForwardWindow, RegimeDetectionResult } from '../types';
+import { Run, MetricsSnapshot, EquityPoint, Trade, MonteCarloSummary, RiskOfRuinSummary, KellySimulationResult, WalkForwardWindow, RegimeDetectionResult, AnalyticsSnapshot } from '../types';
 
 export async function listRuns(): Promise<Run[]> {
   const { data } = await apiClient.get('/runs/');
@@ -74,5 +74,25 @@ export async function createRun(payload: {
 
 export async function finishRun(runId: string): Promise<{ status: string }> {
   const { data } = await apiClient.put(`/runs/${runId}`, { status: 'finished' });
+  return data;
+}
+
+export async function getAnalyticsSnapshot(runId: string): Promise<AnalyticsSnapshot> {
+  const { data } = await apiClient.get(`/runs/${runId}/analytics`);
+  return {
+    metrics_json: data?.metrics ?? null,
+    equity_json: data?.equity ?? null,
+    walk_forward_json: data?.walk_forward ?? null,
+    monte_carlo_json: data?.monte_carlo ?? null,
+    risk_of_ruin_json: data?.risk_of_ruin ?? null,
+    regime_json: data?.regime ?? null,
+    kelly_json: data?.kelly ?? null,
+    is_dirty: !!data?.is_dirty,
+    updated_at: data?.updated_at,
+  } as AnalyticsSnapshot;
+}
+
+export async function computeAnalytics(runId: string): Promise<{ status: string }> {
+  const { data } = await apiClient.post(`/runs/${runId}/compute-analytics`);
   return data;
 }

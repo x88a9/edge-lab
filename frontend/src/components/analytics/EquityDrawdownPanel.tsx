@@ -1,50 +1,45 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { EquityPoint, MetricsSnapshot } from '../../types';
-import { getEquity, getMetrics } from '../../api/runs';
 import { formatFloat, formatPercent } from '../../utils/format';
 
 interface Props {
-  runId: string;
+  equityJson: any;
+  metricsJson: MetricsSnapshot | null;
 }
 
-export default function EquityDrawdownPanel({ runId }: Props) {
-  const [equity, setEquity] = useState<EquityPoint[]>([]);
-  const [metrics, setMetrics] = useState<MetricsSnapshot | null>(null);
-  const [scale, setScale] = useState<'linear' | 'log'>('linear');
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [hoverIdx, setHoverIdx] = useState<number | null>(null);
-
+export default function EquityDrawdownPanel({ equityJson, metricsJson }: Props) {
+  const [equity, setEquity] = useState<EquityPoint[]>(() => {
+    if (!equityJson) return [];
+    if (Array.isArray(equityJson)) {
+      return equityJson as EquityPoint[];
+    }
+    const eq = Array.isArray(equityJson?.equity) ? equityJson.equity : [];
+    const dd = Array.isArray(equityJson?.drawdown) ? equityJson.drawdown : [];
+    return eq.map((e: number, i: number) => ({ time: i, equity: e, drawdown: dd[i] }));
+  });
   useEffect(() => {
-    setLoading(true);
-    Promise.all([
-      getEquity(runId).catch(() => []),
-      getMetrics(runId).catch(() => null),
-    ])
-      .then(([e, m]) => { setEquity(e); setMetrics(m); })
-      .catch((err) => setError(err?.message || 'Failed to load equity'))
-      .finally(() => setLoading(false));
-  }, [runId]);
+    if (!equityJson) { setEquity([]); return; }
+    if (Array.isArray(equityJson)) {
+      setEquity(equityJson as EquityPoint[]);
+      return;
+    }
+    const eq = Array.isArray(equityJson?.equity) ? equityJson.equity : [];
+    const dd = Array.isArray(equityJson?.drawdown) ? equityJson.drawdown : [];
+    setEquity(eq.map((e: number, i: number) => ({ time: i, equity: e, drawdown: dd[i] })));
+  }, [equityJson]);
+  const [scale, setScale] = useState<'linear' | 'log'>('linear');
+  const [hoverIdx, setHoverIdx] = useState<number | null>(null);
 
   const equityArr = useMemo(() => (Array.isArray(equity) ? equity : []), [equity]);
 
   const stats = useMemo(() => {
-    const totalR = metrics?.total_R ?? null;
-    const maxDdR = metrics?.max_drawdown_R ?? null;
-    const logGrowth = metrics?.log_growth ?? null;
+    const totalR = metricsJson?.total_R ?? null;
+    const maxDdR = metricsJson?.max_drawdown_R ?? null;
+    const logGrowth = metricsJson?.log_growth ?? null;
     return { totalR, maxDdR, logGrowth };
-  }, [metrics]);
+  }, [metricsJson]);
 
-  const ddSeries = useMemo(() => {
-    if (!equityArr.length) return [] as number[];
-    const ys = equityArr.map(p => p.equity);
-    const peaks = ys.reduce<number[]>((arr, y, i) => {
-      const prev = i === 0 ? y : Math.max(arr[i-1], y);
-      arr.push(prev);
-      return arr;
-    }, []);
-    return ys.map((y, i) => (y / peaks[i]) - 1);
-  }, [equityArr]);
+  const ddSeries = useMemo(() => equityArr.map(p => Number(p.drawdown ?? 0)), [equityArr]);
 
   const maxDdIndex = useMemo(() => {
     if (!ddSeries.length) return -1;
@@ -102,8 +97,6 @@ export default function EquityDrawdownPanel({ runId }: Props) {
             <button className={`btn ${scale==='log'?'btn-active':''}`} onClick={() => setScale('log')}>Log</button>
           </div>
         </div>
-        {loading && <div className="meta">Loading…</div>}
-        {error && <div className="meta text-red-400">{error}</div>}
       </div>
       {!equityArr.length ? (
         <div className="card p-3"><div className="meta">No equity data available.</div></div>
