@@ -11,7 +11,7 @@ from sqlalchemy import (
     Index,
     UniqueConstraint,
 )
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.dialects.postgresql import UUID, JSON
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from .database import Base
 
@@ -27,7 +27,7 @@ class User(Base):
 
     email: Mapped[str] = mapped_column(
         String(255),
-        unique=True,  # global unique bleibt korrekt
+        unique=True,
         index=True,
         nullable=False,
     )
@@ -87,6 +87,12 @@ class User(Base):
 
     variant_metrics = relationship(
         "VariantMetrics",
+        back_populates="user",
+        cascade="all, delete-orphan",
+    )
+
+    run_analytics = relationship(
+        "RunAnalytics",
         back_populates="user",
         cascade="all, delete-orphan",
     )
@@ -246,6 +252,13 @@ class Run(Base):
         uselist=False,
     )
 
+    analytics = relationship(
+        "RunAnalytics",
+        back_populates="run",
+        uselist=False,
+        cascade="all, delete-orphan",
+    )
+
 
 class Trade(Base):
     __tablename__ = "trades"
@@ -382,3 +395,61 @@ class VariantMetrics(Base):
 
     user = relationship("User", back_populates="variant_metrics")
     variant = relationship("Variant", back_populates="metrics")
+
+
+class RunAnalytics(Base):
+    __tablename__ = "run_analytics"
+
+    __table_args__ = (
+        UniqueConstraint("user_id", "run_id", name="uq_run_analytics_user_run"),
+        Index("ix_run_analytics_user_id", "user_id"),
+        Index("ix_run_analytics_run_id", "run_id"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        primary_key=True,
+        default=uuid.uuid4,
+    )
+
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("users.id"),
+        nullable=False,
+    )
+
+    run_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("runs.id"),
+        nullable=False,
+    )
+
+    metrics_json: Mapped[dict] = mapped_column(JSON, nullable=False)
+    equity_json: Mapped[dict] = mapped_column(JSON, nullable=False)
+    walk_forward_json: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    monte_carlo_json: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    risk_of_ruin_json: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    regime_json: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    kelly_json: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+
+    is_dirty: Mapped[bool] = mapped_column(
+        Boolean,
+        default=True,
+        nullable=False,
+    )
+
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime,
+        default=datetime.utcnow,
+        nullable=False,
+    )
+
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime,
+        default=datetime.utcnow,
+        onupdate=datetime.utcnow,
+        nullable=False,
+    )
+
+    run = relationship("Run", back_populates="analytics")
+    user = relationship("User", back_populates="run_analytics")

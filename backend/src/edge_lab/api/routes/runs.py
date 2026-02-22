@@ -1,7 +1,7 @@
 from fastapi import APIRouter, HTTPException, Depends
 from sqlalchemy.orm import Session
 from edge_lab.persistence.database import get_db
-from edge_lab.persistence.models import Run, Trade, User
+from edge_lab.persistence.models import Run, Trade, User, RunAnalytics
 from edge_lab.security.auth import get_current_user
 
 from edge_lab.analytics.metrics import MetricsEngine
@@ -11,12 +11,12 @@ from edge_lab.analytics.risk_of_ruin import RiskOfRuinEngine
 from edge_lab.analytics.walk_forward import WalkForwardEngine
 from edge_lab.analytics.regime_detection import RegimeDetectionEngine
 from edge_lab.analytics.kelly_simulation import KellySimulationEngine
-
-import numpy as np
+import time
 import uuid
 from pydantic import BaseModel
 
 router = APIRouter(tags=["Runs"])
+
 
 class RunCreate(BaseModel):
     variant_id: str
@@ -152,165 +152,155 @@ def delete_run(
 
 
 # ==========================================================
-# METRICS
+# COMPUTE ANALYTICS (PERSISTED)
 # ==========================================================
 
-@router.get("/{run_id}/metrics")
-def metrics(
-    run_id: str,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
-):
-    get_owned_run(run_id, db, current_user)
-
-    return MetricsEngine.generate_for_run(
-        db=db,
-        run_id=uuid.UUID(run_id),
-        user_id=current_user.id,
-    )
-
-
-# ==========================================================
-# EQUITY
-# ==========================================================
-
-@router.get("/{run_id}/equity")
-def equity_curve(
+@router.post("/{run_id}/compute-analytics")
+def compute_analytics(
     run_id: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     run = get_owned_run(run_id, db, current_user)
 
-    trades = (
-        db.query(Trade)
-        .filter(
-            Trade.run_id == run.id,
-            Trade.user_id == current_user.id,
-        )
-        .all()
+    start = time.time()
+    metrics = MetricsEngine.generate_for_run(
+        db=db,
+        run_id=run.id,
+        user_id=current_user.id,
     )
+    print("metrics:", time.time() - start)
 
-    if not trades:
-        return {"equity": [], "drawdown": []}
-
-    r_values = np.array([t.r_multiple for t in trades if t.r_multiple is not None])
-
-    risk_fraction = 0.01
-    equity = 1.0
-    equity_curve = []
-
-    for r in r_values:
-        equity *= (1 + r * risk_fraction)
-        equity_curve.append(float(equity))
-
-    equity_series = np.array(equity_curve)
-    peak = np.maximum.accumulate(equity_series)
-    drawdown = ((equity_series - peak) / peak).tolist()
-
-    return {
-        "equity": equity_curve,
-        "drawdown": drawdown,
+    start = time.time()
+    equity_df = EquityBuilder.build_equity_series(
+        db=db,
+        run_id=run.id,
+        user_id=current_user.id,
+    )
+    equity = {
+        "equity": equity_df["equity"].tolist(),
+        "drawdown": equity_df["drawdown"].tolist(),
     }
+    print("equity:", time.time() - start)
 
-
-# ==========================================================
-# WALK FORWARD
-# ==========================================================
-
-@router.get("/{run_id}/walk-forward")
-def walk_forward(
-    run_id: str,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
-):
-    get_owned_run(run_id, db, current_user)
-
-    return WalkForwardEngine.run(
+    start = time.time()
+    walk_forward = WalkForwardEngine.run(
         db=db,
-        run_id=uuid.UUID(run_id),
+        run_id=run.id,
         user_id=current_user.id,
     )
+    print("walk:", time.time() - start)
 
-
-# ==========================================================
-# REGIME DETECTION
-# ==========================================================
-
-@router.get("/{run_id}/regime-detection")
-def regime_detection(
-    run_id: str,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
-):
-    get_owned_run(run_id, db, current_user)
-
-    return RegimeDetectionEngine.detect(
+    start = time.time()
+    monte_carlo = MonteCarloEngine.bootstrap_run(
         db=db,
-        run_id=uuid.UUID(run_id),
-        user_id=current_user.id,
-    )
-
-
-# ==========================================================
-# KELLY SIMULATION
-# ==========================================================
-
-@router.get("/{run_id}/kelly-simulation")
-def kelly_simulation(
-    run_id: str,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
-):
-    get_owned_run(run_id, db, current_user)
-
-    return KellySimulationEngine.generate_for_run(
-        db=db,
-        run_id=uuid.UUID(run_id),
-        user_id=current_user.id,
-    )
-
-
-# ==========================================================
-# MONTE CARLO
-# ==========================================================
-
-@router.get("/{run_id}/monte-carlo")
-def monte_carlo(
-    run_id: str,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
-):
-    get_owned_run(run_id, db, current_user)
-
-    return MonteCarloEngine.bootstrap_run(
-        db=db,
-        run_id=uuid.UUID(run_id),
+        run_id=run.id,
         user_id=current_user.id,
         simulations=3000,
     )
+    print("mc:", time.time() - start)
 
-
-# ==========================================================
-# RISK OF RUIN
-# ==========================================================
-
-@router.get("/{run_id}/risk-of-ruin")
-def risk_of_ruin(
-    run_id: str,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
-):
-    get_owned_run(run_id, db, current_user)
-
-    return RiskOfRuinEngine.simulate(
+    start = time.time()
+    risk_of_ruin = RiskOfRuinEngine.simulate(
         db=db,
-        run_id=uuid.UUID(run_id),
+        run_id=run.id,
         user_id=current_user.id,
         simulations=3000,
         position_fraction=0.01,
         ruin_threshold=0.7,
     )
+    print("ror:", time.time() - start)
+
+    start = time.time()
+    regime = RegimeDetectionEngine.detect(
+        db=db,
+        run_id=run.id,
+        user_id=current_user.id,
+    )
+    print("regimedetection:", time.time() - start)
+
+    start = time.time()
+    kelly = KellySimulationEngine.generate_for_run(
+        db=db,
+        run_id=run.id,
+        user_id=current_user.id,
+    )
+    print("kelly:", time.time() - start)
+    existing = (
+        db.query(RunAnalytics)
+        .filter(
+            RunAnalytics.user_id == current_user.id,
+            RunAnalytics.run_id == run.id,
+        )
+        .first()
+    )
+
+    if existing:
+        existing.metrics_json = metrics
+        existing.equity_json = equity
+        existing.walk_forward_json = walk_forward
+        existing.monte_carlo_json = monte_carlo
+        existing.risk_of_ruin_json = risk_of_ruin
+        existing.regime_json = regime
+        existing.kelly_json = kelly
+        existing.is_dirty = False
+    else:
+        analytics = RunAnalytics(
+            user_id=current_user.id,
+            run_id=run.id,
+            metrics_json=metrics,
+            equity_json=equity,
+            walk_forward_json=walk_forward,
+            monte_carlo_json=monte_carlo,
+            risk_of_ruin_json=risk_of_ruin,
+            regime_json=regime,
+            kelly_json=kelly,
+            is_dirty=False,
+        )
+        db.add(analytics)
+
+    db.commit()
+
+    return {"status": "computed"}
+
+
+# ==========================================================
+# GET ANALYTICS (PERSISTED ONLY)
+# ==========================================================
+
+@router.get("/{run_id}/analytics")
+def get_analytics(
+    run_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    run = get_owned_run(run_id, db, current_user)
+
+    analytics = (
+        db.query(RunAnalytics)
+        .filter(
+            RunAnalytics.user_id == current_user.id,
+            RunAnalytics.run_id == run.id,
+        )
+        .first()
+    )
+
+    if not analytics:
+        raise HTTPException(
+            status_code=404,
+            detail="Analytics not computed.",
+        )
+
+    return {
+        "metrics": analytics.metrics_json,
+        "equity": analytics.equity_json,
+        "walk_forward": analytics.walk_forward_json,
+        "monte_carlo": analytics.monte_carlo_json,
+        "risk_of_ruin": analytics.risk_of_ruin_json,
+        "regime": analytics.regime_json,
+        "kelly": analytics.kelly_json,
+        "is_dirty": analytics.is_dirty,
+    }
 
 
 # ==========================================================

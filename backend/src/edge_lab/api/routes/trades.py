@@ -1,7 +1,7 @@
 from fastapi import APIRouter, HTTPException, Depends
 from sqlalchemy.orm import Session
 from edge_lab.persistence.database import get_db
-from edge_lab.persistence.models import Trade, Run, User
+from edge_lab.persistence.models import Trade, Run, User, RunAnalytics
 from edge_lab.security.auth import get_current_user
 import uuid
 import math
@@ -10,6 +10,7 @@ from pydantic import BaseModel
 from typing import Optional
 
 router = APIRouter(tags=["Trades"])
+
 
 # ==========================================================
 # HELPER — OWNERSHIP CHECKS
@@ -68,6 +69,7 @@ class TradeCreate(BaseModel):
     direction: str
     timestamp: datetime | None = None
     timeframe: str | None = None
+
 
 class TradeUpdate(BaseModel):
     entry_price: float
@@ -134,6 +136,19 @@ def create_trade(
     db.commit()
     db.refresh(trade)
 
+    analytics = (
+        db.query(RunAnalytics)
+        .filter(
+            RunAnalytics.user_id == current_user.id,
+            RunAnalytics.run_id == run.id,
+        )
+        .first()
+    )
+
+    if analytics:
+        analytics.is_dirty = True
+        db.commit()
+
     return {
         "id": trade.id,
         "r_multiple": r_multiple,
@@ -153,12 +168,14 @@ def update_trade(
 ):
     trade = get_owned_trade(trade_id, db, current_user)
 
-    # Risk calculation identical to create; guard maintained
     risk = abs(trade_data.entry_price - trade_data.stop_loss)
     if risk == 0:
         raise HTTPException(status_code=400, detail="Stop loss cannot equal entry.")
 
     direction = trade_data.direction.lower()
+    if direction not in ["long", "short"]:
+        raise HTTPException(status_code=400, detail="Direction must be long or short.")
+
     if direction == "long":
         r_multiple = (trade_data.exit_price - trade_data.entry_price) / risk
         raw_return = (trade_data.exit_price - trade_data.entry_price) / trade_data.entry_price
@@ -180,6 +197,19 @@ def update_trade(
 
     db.commit()
 
+    analytics = (
+        db.query(RunAnalytics)
+        .filter(
+            RunAnalytics.user_id == current_user.id,
+            RunAnalytics.run_id == trade.run_id,
+        )
+        .first()
+    )
+
+    if analytics:
+        analytics.is_dirty = True
+        db.commit()
+
     return {"status": "updated"}
 
 
@@ -194,9 +224,23 @@ def delete_trade(
     current_user: User = Depends(get_current_user),
 ):
     trade = get_owned_trade(trade_id, db, current_user)
+    run_id = trade.run_id
 
     db.delete(trade)
     db.commit()
+
+    analytics = (
+        db.query(RunAnalytics)
+        .filter(
+            RunAnalytics.user_id == current_user.id,
+            RunAnalytics.run_id == run_id,
+        )
+        .first()
+    )
+
+    if analytics:
+        analytics.is_dirty = True
+        db.commit()
 
     return {"status": "deleted"}
 
