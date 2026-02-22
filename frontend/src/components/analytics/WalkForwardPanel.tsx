@@ -52,6 +52,12 @@ export default function WalkForwardPanel({ windows: incoming }: Props) {
     const count = flags.filter(Boolean).length;
     return { count, total: windows.length };
   }, [windows]);
+  const classification = useMemo(() => {
+    if (!windows.length) return '—';
+    if (degradation.count === 0) return 'Stable';
+    if (degradation.count > windows.length / 2) return 'Degrading';
+    return 'Improving';
+  }, [windows, degradation]);
 
   const handleMove = (e: React.MouseEvent<SVGSVGElement>) => {
     const rect = (e.target as SVGElement).closest('svg')?.getBoundingClientRect();
@@ -132,6 +138,11 @@ export default function WalkForwardPanel({ windows: incoming }: Props) {
         <div className="card p-3"><div className="meta">Windows</div><div>{windows.length}</div></div>
         <div className="card p-3"><div className="meta">Stability</div><div>{degradation.total ? `${degradation.count} degrading / ${degradation.total}` : '—'}</div></div>
         <div className="card p-3"><div className="meta">Expectancy Range</div><div>{formatFloat(minExp, 4)} → {formatFloat(maxExp, 4)}</div></div>
+      </div>
+      <div className="flex items-center">
+        <span className={`px-3 py-1 rounded-full text-xs border ${classification === 'Stable' ? 'border-[#1f3d2b] bg-[#0e1a13] text-[#9acd92]' : classification === 'Degrading' ? 'border-[#3d1f1f] bg-[#1a0e0e] text-[#e29b9b]' : 'border-[#1f2b3d] bg-[#0e131a] text-[#9bb4e2]'}`}>
+          {classification}
+        </span>
       </div>
     </div>
   );

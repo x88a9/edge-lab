@@ -51,9 +51,7 @@ export default function MonteCarloPanel({ summary }: Props) {
           <div className="card p-3"><div className="meta">Mean Final Return</div><div>{formatPercent(summary.mean_final_return, 2)}</div></div>
           <div className="card p-3"><div className="meta">Median Final Return</div><div>{formatPercent(summary.median_final_return, 2)}</div></div>
           <div className="card p-3"><div className="meta">5% / 95% Final Return</div><div>{formatPercent(summary.p5_final_return, 2)} / {formatPercent(summary.p95_final_return, 2)}</div></div>
-          <div className="card p-3"><div className="meta">Mean Max Drawdown</div><div>{formatPercent(summary.mean_max_dd, 2)}</div></div>
           <div className="card p-3"><div className="meta">Worst Case Drawdown</div><div>{formatPercent(summary.worst_case_dd, 2)}</div></div>
-          <div className="card p-3"><div className="meta">95% Drawdown Percentile</div><div>{formatPercent(summary.p95_dd, 2)}</div></div>
         </div>
       ) : (
         <div className="meta">No summary available.</div>

@@ -17,6 +17,7 @@ import KellySimulationPanel from '../components/analytics/KellySimulationPanel';
 import WalkForwardPanel from '../components/analytics/WalkForwardPanel';
 import RegimeAnalysisPanel from '../components/analytics/RegimeAnalysisPanel';
 import { computeAnalytics, getAnalyticsSnapshot } from '../api/runs';
+import Button from '../components/Button';
 
 export default function RunPage() {
   const { runId } = useParams();
@@ -94,25 +95,20 @@ export default function RunPage() {
 
   return (
     <div className="p-4 space-y-4">
-      <div className="flex items-center justify-between">
-        <div>
-          <div className="text-2xl font-semibold">Run {run.display_name ?? run.id}</div>
-          <div className="meta">Variant {run.variant_id} • <StatusBadge status={run.status} /></div>
-        </div>
-        <div className="flex items-center gap-2">
-          <div className="btn-group">
-            <button className={`btn ${tab === 'overview' ? 'btn-active' : ''}`} onClick={() => setTab('overview')}>Overview</button>
-            <button className={`btn ${tab === 'analytics' ? 'btn-active' : ''}`} onClick={() => setTab('analytics')}>Analytics</button>
-            <button className={`btn ${tab === 'trades' ? 'btn-active' : ''}`} onClick={() => setTab('trades')}>Trades</button>
+      <div className="space-y-2">
+        <div className="flex items-center justify-between">
+          <div>
+            <div className="text-xl font-semibold">Run {run.display_name ?? run.id}</div>
+            <div className="meta">Variant {run.variant_id} • <StatusBadge status={run.status} /></div>
           </div>
-          <button
-            className="btn"
-            aria-label="Run settings"
-            title="Run settings"
-            onClick={() => setSettingsOpen(true)}
-          >
-            ⚙️ Settings
-          </button>
+          <div className="flex items-center gap-2">
+            <div className="inline-flex bg-[#0c0f13] border border-[#1b1f23] rounded-lg overflow-hidden">
+              <Button size="sm" variant="ghost" active={tab === 'overview'} onClick={() => setTab('overview')}>Overview</Button>
+              <Button size="sm" variant="ghost" active={tab === 'analytics'} onClick={() => setTab('analytics')}>Analytics</Button>
+              <Button size="sm" variant="ghost" active={tab === 'trades'} onClick={() => setTab('trades')}>Trades</Button>
+            </div>
+            <Button size="sm" variant="secondary" onClick={() => setSettingsOpen(true)} aria-label="Run settings" title="Run settings">⚙️ Settings</Button>
+          </div>
         </div>
       </div>
 
@@ -136,10 +132,58 @@ export default function RunPage() {
               </div>
             </div>
             <div className="card p-4">
-              <div className="section-title mb-2">Metrics</div>
+              <div className="section-title mb-2">Summary</div>
               {(() => {
-                const overviewMetrics = metrics ?? (analytics?.metrics_json ?? null);
-                return !overviewMetrics ? (
+                const m = (analytics?.metrics_json ?? metrics) || null;
+                const kelly = analytics?.kelly_json ?? null;
+                const ruinSummary = analytics?.risk_of_ruin_json ?? null;
+                if (!m) {
+                  return <div className="meta">No metrics snapshot yet.</div>;
+                }
+                const ruinAtKelly = (() => {
+                  const kf = kelly?.growth_optimal?.fraction;
+                  const pts = kelly?.all_results ?? [];
+                  if (kf == null || !pts.length) return null;
+                  const target = pts.reduce<{f:number,p:number}|null>((best, r) => {
+                    const f = r.fraction, p = r.ruin_probability ?? null;
+                    if (p == null) return best;
+                    if (!best) return { f, p };
+                    return Math.abs(f - kf) < Math.abs(best.f - kf) ? { f, p } : best;
+                  }, null);
+                  return target?.p ?? null;
+                })();
+                return (
+                <div className="grid grid-cols-5 gap-3">
+                  <div className="card p-3">
+                    <div className="meta">Expectancy (R)</div>
+                    <div className={`${(m.expectancy_R ?? 0) >= 0 ? 'text-[#9acd92]' : 'text-[#e29b9b]'}`}>{formatFloat(m.expectancy_R ?? 0, 4)}</div>
+                  </div>
+                  <div className="card p-3">
+                    <div className="meta">Log Growth</div>
+                    <div className={`${(m.log_growth ?? 0) >= 0 ? 'text-[#9acd92]' : 'text-[#e29b9b]'}`}>{formatFloat(m.log_growth ?? 0, 6)}</div>
+                  </div>
+                  <div className="card p-3">
+                    <div className="meta">Max DD (R)</div>
+                    <div className="text-[#9bb4e2]">{formatFloat(m.max_drawdown_R ?? 0, 4)}</div>
+                  </div>
+                  <div className="card p-3">
+                    <div className="meta">Kelly</div>
+                    <div className="text-[#9bb4e2]">{formatPercent(m.kelly_f ?? 0, 2)}</div>
+                  </div>
+                  <div className="card p-3">
+                    <div className="meta">Ruin @ Kelly</div>
+                    <div className={`${(ruinAtKelly ?? 0) <= 0.05 ? 'text-[#9acd92]' : 'text-[#e29b9b]'}`}>{ruinAtKelly != null ? formatPercent(ruinAtKelly, 2) : '—'}</div>
+                  </div>
+                </div>
+                );
+              })()}
+            </div>
+          </div>
+          <div className="card p-4">
+            <div className="section-title mb-2">Metrics</div>
+            {(() => {
+              const overviewMetrics = metrics ?? (analytics?.metrics_json ?? null);
+              return !overviewMetrics ? (
                 <div className="meta">No metrics snapshot yet.</div>
               ) : (
                 <div className="grid grid-cols-2 gap-3">
@@ -156,7 +200,6 @@ export default function RunPage() {
                   {overviewMetrics.kelly_f != null && <MetricCard label="Kelly Fraction" value={formatPercent(overviewMetrics.kelly_f, 2)} />}
                   {overviewMetrics.log_growth != null && <MetricCard label="Log Growth" value={formatFloat(overviewMetrics.log_growth, 6)} />}
                   {overviewMetrics.max_drawdown_R != null && <MetricCard label="Max Drawdown (R)" value={formatFloat(overviewMetrics.max_drawdown_R, 4)} />}
-                  {/* Legacy fields fallback if present */}
                   {overviewMetrics.expectancy != null && <MetricCard label="Expectancy" value={formatFloat(overviewMetrics.expectancy, 6)} />}
                   {overviewMetrics.sharpe != null && <MetricCard label="Sharpe" value={formatSharpe(overviewMetrics.sharpe)} />}
                   {overviewMetrics.volatility != null && <MetricCard label="Volatility" value={formatPercent(overviewMetrics.volatility, 2)} />}
@@ -165,8 +208,7 @@ export default function RunPage() {
                   {overviewMetrics.total_return != null && <MetricCard label="Total Return" value={formatPercent(overviewMetrics.total_return, 2)} />}
                 </div>
               );
-              })()}
-            </div>
+            })()}
           </div>
         </section>
       )}
@@ -197,8 +239,8 @@ export default function RunPage() {
             <div className="section-title">Analytics</div>
             <div className="flex items-center gap-2">
               {analytics?.is_dirty && <span className="badge-warning">Outdated</span>}
-              <button
-                className="btn-primary"
+              <Button
+                variant="primary"
                 disabled={computing || analyticsLoading}
                 onClick={async () => {
                   setComputing(true);
@@ -213,7 +255,7 @@ export default function RunPage() {
                 }}
               >
                 {computing ? 'Computing…' : 'Recompute Analytics'}
-              </button>
+              </Button>
             </div>
           </div>
           {analyticsLoading && <div className="meta">Loading analytics…</div>}

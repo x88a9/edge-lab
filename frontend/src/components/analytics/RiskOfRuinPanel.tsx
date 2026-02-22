@@ -50,9 +50,25 @@ export default function RiskOfRuinPanel({ summary, kellyResults }: Props) {
 
       {summary ? (
         <div className="grid grid-cols-3 gap-3">
-          <MetricCard label="Probability of Ruin" value={formatPercent(summary.ruin_probability, 2)} subtitle="Snapshot value" />
-          <MetricCard label="Expected Terminal R" value={formatPercent(summary.mean_final_capital - 1, 2)} subtitle="Mean final return" />
-          <MetricCard label="Worst Case Drawdown" value={formatPercent(summary.worst_case_drawdown, 2)} subtitle="Across simulations" />
+          <div className="card p-3"><div className="meta">Ruin @ 10%</div><div>{(() => {
+            const target = ruinPoints.reduce<{f:number,p:number}|null>((best, r) => {
+              const f = r.fraction, p = r.ruin_probability as number;
+              if (!best) return { f, p };
+              return Math.abs(f - 0.1) < Math.abs(best.f - 0.1) ? { f, p } : best;
+            }, null);
+            return target ? formatPercent(target.p, 2) : '—';
+          })()}</div></div>
+          <div className="card p-3"><div className="meta">Ruin @ Kelly</div><div>{(() => {
+            const k = kellyResults?.growth_optimal?.fraction;
+            if (k == null) return '—';
+            const target = ruinPoints.reduce<{f:number,p:number}|null>((best, r) => {
+              const f = r.fraction, p = r.ruin_probability as number;
+              if (!best) return { f, p };
+              return Math.abs(f - k) < Math.abs(best.f - k) ? { f, p } : best;
+            }, null);
+            return target ? formatPercent(target.p, 2) : '—';
+          })()}</div></div>
+          <div className="card p-3"><div className="meta">Worst Case DD</div><div>{formatPercent(summary.worst_case_drawdown, 2)}</div></div>
         </div>
       ) : (
         <div className="meta">No summary available.</div>
