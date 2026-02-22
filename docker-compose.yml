@@ -24,5 +24,14 @@ services:
       JWT_SECRET: supersecret
     command: uvicorn edge_lab.api.main:app --host 0.0.0.0 --port 8000 --reload
 
+  frontend:
+    build:
+      context: ./frontend
+    container_name: edge-frontend
+    depends_on:
+      - backend
+    ports:
+      - "2026:80"
+
 volumes:
   db_data:
