@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import DataTable from '../components/DataTable';
 import { getSystem, listVariantsForSystem } from '../api/systems';
 import CreateVariantModal from '../components/modals/CreateVariantModal';
+import Button from '../components/Button';
 
 export default function SystemPage() {
   const { systemId } = useParams();
@@ -57,7 +58,7 @@ export default function SystemPage() {
         <div className="card-header px-4 py-3 flex items-center justify-between">
           <div className="card-title">Variants for this system</div>
           <div>
-            <button className="btn" onClick={() => setOpenVariant(true)}>+ New Variant</button>
+            <Button variant="primary" onClick={() => setOpenVariant(true)}>+ New Variant</Button>
           </div>
         </div>
         <div className="p-0">

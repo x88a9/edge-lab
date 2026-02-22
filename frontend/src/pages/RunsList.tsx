@@ -13,8 +13,9 @@ export default function RunsList() {
 
   return (
     <div>
-      <div className="page-title mb-2">Runs</div>
-      <div className="subline mb-4">All strategy runs</div>
+      <div className="page-title mb-1">Runs</div>
+      <div className="subline">All strategy runs</div>
+      <div className="border-b border-neutral-800 mb-4"></div>
       <DataTable
         columns={[
           { key: 'display_name', label: 'Run', render: (r: any) => r.display_name || r.id },

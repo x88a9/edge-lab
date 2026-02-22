@@ -7,6 +7,8 @@ import DataTable from '../components/DataTable';
 import { listVariantsForSystem } from '../api/systems';
 import type { Variant, System } from '../types';
 import { useNavigate } from 'react-router-dom';
+import { useRuns } from '../hooks/useRuns';
+import Button from '../components/Button';
 
 export default function SystemsPage() {
   const { data, loading, error, refetch } = useSystems();
@@ -15,6 +17,7 @@ export default function SystemsPage() {
   const [selectedSystemId, setSelectedSystemId] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   const navigate = useNavigate();
+  const { data: runsData } = useRuns();
 
   // Expanded systems and cached variants per system
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
@@ -49,10 +52,16 @@ export default function SystemsPage() {
 
   return (
     <div>
-      <div className="page-title mb-2">Systems</div>
-      <div className="subline mb-4">All systems in the workspace</div>
+      <div className="page-title mb-1">Systems</div>
+      <div className="subline">All systems in the workspace</div>
+      <div className="border-b border-neutral-800 mb-4"></div>
+      <div className="grid grid-cols-3 gap-3 mb-4">
+        <div className="card p-3"><div className="meta">Total Systems</div><div className="text-lg font-semibold">{data.length}</div></div>
+        <div className="card p-3"><div className="meta">Total Runs</div><div className="text-lg font-semibold">{(runsData || []).length}</div></div>
+        <div className="card p-3"><div className="meta">Active Runs</div><div className="text-lg font-semibold">{(runsData || []).filter((r: any) => r.status === 'open').length}</div></div>
+      </div>
       <div className="mb-3 flex justify-end">
-        <button className="btn-primary" onClick={() => setOpenStrategy(true)}>+ Create System</button>
+        <Button variant="primary" onClick={() => setOpenStrategy(true)}>+ Create System</Button>
       </div>
 
       {loading ? (
@@ -73,8 +82,8 @@ export default function SystemsPage() {
             { key: 'created_at', label: 'Created', muted: true },
             { key: 'actions', label: 'Actions', render: (s: any) => (
               <div className="flex gap-2 justify-end">
-                <button className="btn" onClick={(e) => { e.stopPropagation(); setSelectedSystemId(s.id); setOpenVariant(true); }}>+ New Variant</button>
-                <button className="btn" onClick={(e) => { e.stopPropagation(); toggleVariants(s); }}>{expanded.has(s.id) ? 'Hide Variants' : 'Show Variants'}</button>
+                <Button variant="secondary" onClick={(e: any) => { e.stopPropagation(); setSelectedSystemId(s.id); setOpenVariant(true); }}>+ New Variant</Button>
+                <Button variant="ghost" onClick={(e: any) => { e.stopPropagation(); toggleVariants(s); }}>{expanded.has(s.id) ? 'Hide Variants' : 'Show Variants'}</Button>
               </div>
             ), align: 'right' },
           ]}
@@ -90,7 +99,7 @@ export default function SystemsPage() {
         return (
           <div key={systemId} className="mt-4">
             <div className="section-title mb-2">Variants for {sys?.display_name || sys?.name || systemId}</div>
-            {loadingVariants[systemId] ? (
+            { loadingVariants[systemId] ? (
               <div className="card p-4"><div className="meta">Loading variants…</div></div>
             ) : (
               <DataTable

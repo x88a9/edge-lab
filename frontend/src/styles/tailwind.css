@@ -17,22 +17,22 @@
 
   html, body, #root { height: 100%; }
 
-  body { @apply bg-neutral-950 text-text antialiased; }
+  body { @apply bg-neutral-950 text-text antialiased; font-family: Inter, ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji"; }
 
   /* Typography hierarchy */
-  .page-title { @apply text-2xl font-semibold tracking-tight text-text; }
-  .section-title { @apply text-lg font-semibold tracking-tight text-text; }
+  .page-title { @apply text-xl font-semibold tracking-tight text-text; }
+  .section-title { @apply text-xs uppercase tracking-wider text-text-muted; }
   .subline { @apply text-sm text-text-muted; }
-  .table-header { @apply text-xs font-medium text-text-muted; }
-  .body-text { @apply text-sm; }
+  .table-header { @apply text-xs font-medium text-text-muted opacity-80; }
+  .body-text { @apply text-[15px]; }
   .meta { @apply text-xs text-text-muted; }
 
   /* Cards and inputs */
-  .card { @apply bg-neutral-900 border border-neutral-800 rounded-sm; }
-  .raised { @apply bg-[#161719] border border-neutral-800 rounded-sm; }
-  .input { @apply bg-neutral-900 border border-neutral-800 rounded-sm px-3 py-2 text-sm text-text placeholder:text-text-muted focus:outline-none focus:ring-1 focus:ring-sky-500; }
-  .btn { @apply inline-flex items-center justify-center rounded-sm px-3 py-1.5 text-sm border border-neutral-800 bg-neutral-900 hover:bg-neutral-800 text-text; }
-  .btn-primary { @apply bg-sky-600 hover:bg-sky-500 border-sky-500 text-white; }
+  .card { @apply bg-neutral-900 border border-neutral-800 rounded-lg; }
+  .raised { @apply bg-[#161719] border border-neutral-800 rounded-lg; }
+  .input { @apply bg-neutral-900 border border-neutral-800 rounded-lg px-3 py-2 text-sm text-text placeholder:text-text-muted focus:outline-none focus:ring-1 focus:ring-[#2b3a4a]; }
+  .btn { @apply inline-flex items-center justify-center rounded-lg px-4 py-2 text-sm border border-neutral-800 bg-neutral-900 hover:bg-neutral-800 text-text transition-all duration-150; }
+  .btn-primary { @apply bg-[#1e2a38] hover:bg-[#243345] border-[#2b3a4a] text-white; }
 
   /* Numeric alignment */
   .num { @apply text-right font-mono; font-variant-numeric: tabular-nums; }
@@ -41,10 +41,11 @@
 @layer components {
   .table { @apply w-full text-sm; }
   .table thead th { @apply table-header border-b border-neutral-800 py-2 bg-neutral-950 sticky top-0 z-10; }
-  .table tbody tr { @apply border-b border-neutral-900; }
+  .table tbody tr { @apply border-b border-neutral-900 transition-colors duration-150; }
+  .table tbody tr td { @apply py-2.5; }
   .table tbody tr:hover { @apply bg-neutral-900; }
 
-  .badge { @apply inline-flex items-center px-2 py-0.5 text-xs border rounded-sm; }
-  .badge-open { @apply bg-sky-900/30 border-sky-800 text-sky-300; }
-  .badge-closed { @apply bg-neutral-800 border-neutral-700 text-text-muted; }
+  .badge { @apply inline-flex items-center px-2 py-0.5 text-[11px] rounded-sm; }
+  .badge-open { @apply bg-sky-900/20 text-sky-300; }
+  .badge-closed { @apply bg-neutral-800/50 text-text-muted; }
 }

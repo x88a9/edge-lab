@@ -31,8 +31,9 @@ export default function VariantsPage() {
 
   return (
     <div>
-      <div className="page-title mb-2">Variants</div>
-      <div className="subline mb-4">All variants</div>
+      <div className="page-title mb-1">Variants</div>
+      <div className="subline">All variants</div>
+      <div className="border-b border-neutral-800 mb-4"></div>
 
       <DataTable
         columns={[
