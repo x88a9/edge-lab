@@ -12,11 +12,11 @@ class KellySimulationEngine:
         run_id,
         user_id,
         fractions=None,
-        simulations: int = 1000,
         ruin_threshold: float = 0.7,
+        use_ror_constraint: bool = True,
     ):
         if fractions is None:
-            fractions = np.linspace(0.005, 0.2, 20)
+            fractions = np.linspace(0.0, 0.2, 50)  # finer grid
 
         # Load trades once
         trades = (
@@ -37,30 +37,51 @@ class KellySimulationEngine:
 
         for f in fractions:
 
-            result = RiskOfRuinEngine.simulate_from_returns(
-                raw_returns=raw_returns,
-                simulations=simulations,
-                position_fraction=float(f),
-                ruin_threshold=ruin_threshold,
-            )
+            # Avoid invalid region where 1 + f*r <= 0
+            if np.any(1 + f * raw_returns <= 0):
+                continue
 
-            results.append({
+            mean_log_growth = float(np.mean(np.log(1 + f * raw_returns)))
+
+            entry = {
                 "fraction": float(f),
-                "mean_final_capital": result["mean_final_capital"],
-                "ruin_probability": result["ruin_probability"],
-                "mean_max_drawdown": result["mean_max_drawdown"],
-            })
+                "mean_log_growth": mean_log_growth,
+            }
 
-        best_growth = max(results, key=lambda x: x["mean_final_capital"])
+            # Optional: compute ruin risk for constraint
+            if use_ror_constraint and f > 0:
+                ror = RiskOfRuinEngine.simulate_from_returns(
+                    raw_returns=raw_returns,
+                    simulations=1000,
+                    position_fraction=float(f),
+                    ruin_threshold=ruin_threshold,
+                )
 
+                entry["ruin_probability"] = ror["ruin_probability"]
+                entry["mean_max_drawdown"] = ror["mean_max_drawdown"]
+            else:
+                entry["ruin_probability"] = None
+                entry["mean_max_drawdown"] = None
+
+            results.append(entry)
+
+        if not results:
+            raise ValueError("No valid Kelly fractions found.")
+
+        # True Kelly optimal = max mean log growth
+        best_growth = max(results, key=lambda x: x["mean_log_growth"])
+
+        # Safe Kelly (ruin constraint)
         safe_candidates = [
-            r for r in results if r["ruin_probability"] < 0.05
+            r for r in results
+            if r["ruin_probability"] is not None
+            and r["ruin_probability"] < 0.05
         ]
 
-        safe_fraction = max(
-            safe_candidates,
-            key=lambda x: x["mean_final_capital"],
-            default=None
+        safe_fraction = (
+            max(safe_candidates, key=lambda x: x["mean_log_growth"])
+            if safe_candidates
+            else None
         )
 
         return {
@@ -75,7 +96,6 @@ class KellySimulationEngine:
         run_id,
         user_id,
     ):
-
         raw_results = KellySimulationEngine.evaluate_fractions(
             db=db,
             run_id=run_id,
@@ -83,19 +103,25 @@ class KellySimulationEngine:
         )
 
         clean_results = []
+
         for r in raw_results["all_results"]:
             clean_results.append({
                 "fraction": float(r["fraction"]),
-                "mean_final_capital": float(r["mean_final_capital"]),
-                "ruin_probability": float(r["ruin_probability"]),
-                "mean_max_drawdown": float(r["mean_max_drawdown"]),
+                "mean_log_growth": float(r["mean_log_growth"]),
+                "ruin_probability": (
+                    float(r["ruin_probability"])
+                    if r["ruin_probability"] is not None
+                    else None
+                ),
+                "mean_max_drawdown": (
+                    float(r["mean_max_drawdown"])
+                    if r["mean_max_drawdown"] is not None
+                    else None
+                ),
             })
-
-        best_growth = raw_results["growth_optimal"]
-        safe_fraction = raw_results["safe_fraction"]
 
         return {
             "all_results": clean_results,
-            "growth_optimal": best_growth,
-            "safe_fraction": safe_fraction,
+            "growth_optimal": raw_results["growth_optimal"],
+            "safe_fraction": raw_results["safe_fraction"],
         }
