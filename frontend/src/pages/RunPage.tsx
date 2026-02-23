@@ -283,21 +283,23 @@ export default function RunPage() {
           <CollapsibleSection title="Distribution" defaultOpen>
             <DistributionPanel metricsJson={analytics?.metrics_json ?? null} trades={trades as any} />
           </CollapsibleSection>
-          <CollapsibleSection title="Monte Carlo" defaultOpen>
-            <MonteCarloPanel summary={analytics?.monte_carlo_json ?? null} />
-          </CollapsibleSection>
-          <CollapsibleSection title="Risk of Ruin" defaultOpen>
-            <RiskOfRuinPanel summary={analytics?.risk_of_ruin_json ?? null} kellyResults={analytics?.kelly_json ?? null} />
-          </CollapsibleSection>
-          <CollapsibleSection title="Kelly Simulation" defaultOpen>
-            <KellySimulationPanel result={analytics?.kelly_json ?? null} />
-          </CollapsibleSection>
-          <CollapsibleSection title="Walk Forward Analysis" defaultOpen>
-            <WalkForwardPanel windows={analytics?.walk_forward_json ?? []} />
-          </CollapsibleSection>
-          <CollapsibleSection title="Regime Analysis" defaultOpen>
-            <RegimeAnalysisPanel result={analytics?.regime_json ?? null} />
-          </CollapsibleSection>
+          <div className={analytics?.is_dirty ? 'opacity-60' : ''}>
+            <CollapsibleSection title="Monte Carlo" defaultOpen>
+              <MonteCarloPanel summary={analytics?.monte_carlo_json ?? null} />
+            </CollapsibleSection>
+            <CollapsibleSection title="Risk of Ruin" defaultOpen>
+              <RiskOfRuinPanel summary={analytics?.risk_of_ruin_json ?? null} kellyResults={analytics?.kelly_json ?? null} />
+            </CollapsibleSection>
+            <CollapsibleSection title="Kelly Simulation" defaultOpen>
+              <KellySimulationPanel result={analytics?.kelly_json ?? null} />
+            </CollapsibleSection>
+            <CollapsibleSection title="Walk Forward Analysis" defaultOpen>
+              <WalkForwardPanel windows={analytics?.walk_forward_json ?? []} />
+            </CollapsibleSection>
+            <CollapsibleSection title="Regime Analysis" defaultOpen>
+              <RegimeAnalysisPanel result={analytics?.regime_json ?? null} />
+            </CollapsibleSection>
+          </div>
         </section>
       )}
 

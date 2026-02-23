@@ -32,6 +32,32 @@ def get_owned_portfolio(pid: str, db: Session, user: User):
         raise HTTPException(status_code=404, detail="Portfolio not found.")
     return portfolio
 
+# ==========================================================
+# LIST PORTFOLIOS (ISOLATED)
+# ==========================================================
+
+@router.get("/")
+def list_portfolios(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    portfolios = (
+        db.query(PortfolioAnalytics)
+        .filter(PortfolioAnalytics.user_id == current_user.id)
+        .all()
+    )
+
+    return [
+        {
+            "id": p.id,
+            "name": p.name,
+            "allocation_mode": p.allocation_mode,
+            "strategy_count": p.strategy_count,
+            "is_dirty": p.is_dirty,
+            "updated_at": p.updated_at,
+        }
+        for p in portfolios
+    ]
 
 @router.post("/")
 def create_portfolio(

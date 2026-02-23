@@ -1,11 +1,10 @@
 # Edge Lab
 
-Edge Lab is a modular research and execution framework for systematic
+Edge Lab is a deterministic, hierarchical research engine for systematic
 trading.
 
-It enforces research discipline through controlled experimentation,
-versioned strategy evolution, and statistically robust performance
-analytics.
+It enforces strict research structure, snapshot-based analytics, and
+capital-layer modeling across multiple abstraction levels.
 
 Core objective:
 
@@ -22,15 +21,19 @@ Strict structural separation:
 
 Strategy → Variant → Run → Trades
 
-Each backtest is executed as a controlled 100-trade block.
+Each layer builds on deterministic lower-layer snapshots.
 
-Purpose:
+Research hierarchy:
 
--   Stability testing
--   Edge decay detection
--   Variant comparison
--   Overfitting mitigation
--   Structured development tracking
+Trades\
+→ RunAnalytics\
+→ VariantAnalytics\
+→ StrategyAnalytics\
+→ PortfolioAnalytics
+
+No implicit recomputation.\
+No hidden state mutations.\
+All analytics are explicitly computed and persisted.
 
 Backtests are treated as research samples --- not marketing material.
 
@@ -39,64 +42,86 @@ Backtests are treated as research samples --- not marketing material.
 ## Architecture
 
 Strategy\
-└── Variant (parameter iteration)\
-    ├── Run (Backtest -- 100 trades)\
-    ├── Run (Backtest -- 100 trades)\
-    └── Run (Live execution)\
-        └── Trades
+└── Variant\
+  └── Run\
+    └── Trades
 
-Variants form an evolutionary tree via parent-child relationships.
+Analytics Hierarchy:
 
-Runs are isolated and reproducible.
+RunAnalytics (based on Trades)\
+VariantAnalytics (based on RunAnalytics)\
+StrategyAnalytics (based on VariantAnalytics)\
+PortfolioAnalytics (based on StrategyAnalytics)
+
+All layers support:
+
+-   Snapshot persistence
+-   Dirty-flag invalidation
+-   Explicit compute endpoints
+-   Deterministic state
 
 ------------------------------------------------------------------------
 
 ## Core Capabilities
 
-### Research Layer
+### Research Engine
 
 -   Controlled 100-trade blocks
--   Versioned variants
+-   Versioned variant evolution
 -   Parameter hashing
--   Evolution tree tracking
--   Walk-forward testing
+-   Walk-forward analysis
 -   Monte Carlo simulation
 -   Risk-of-ruin modeling
+-   Kelly optimization (log-growth based)
+-   R-multiple unified capital model
 
-### Analytics Engine
-
-Log-return based analytics:
-
--   Expectancy
--   Win rate
--   Payoff ratio
--   Kelly (full & fractional)
--   Sharpe
--   Sortino
--   Volatility
--   Volatility drag
--   Max drawdown
--   Calmar
--   Skew / Kurtosis
--   Rolling stability metrics
--   Monthly aggregation
-
-All analytics are tenant-isolated.
+All capital compounding is R-based and internally consistent.
 
 ------------------------------------------------------------------------
 
-### Execution Layer
+### Hierarchical Analytics
 
--   Backtest engine
--   Manual trade logging
--   Live trade logging
--   Broker adapters (planned)
+**Run Level** - Expectancy - Mean log growth - Sharpe - Max drawdown -
+Equity curve - RuR simulation - Monte Carlo simulation
+
+**Variant Level** - Aggregated run expectancy - Mean log growth across
+runs - Stability dispersion - Best/worst run analysis
+
+**Strategy Level** - Aggregated variant performance - Stability
+scoring - Cross-variant dispersion
+
+**Portfolio Level** - Allocation modes: - Equal weight -
+Kelly-weighted - Fixed weight - Combined equity simulation - Combined
+growth metrics - Deterministic portfolio snapshots
+
+------------------------------------------------------------------------
+
+## Deterministic Snapshot System
+
+All analytics layers follow the same rules:
+
+-   Explicit compute endpoint
+-   Stored JSON snapshot
+-   Dirty-flag invalidation
+-   No compute-on-read
+-   Upward propagation of invalidation
+
+Hierarchy:
+
+Run change\
+→ Variant marked dirty\
+→ Strategy marked dirty\
+→ Portfolio marked dirty
+
+Centralized propagation via DirtyPropagationService.
+
+System status: Production-ready (manual trigger mode).
 
 ------------------------------------------------------------------------
 
 ## Multi-User Architecture
 
-Hard multi-tenant isolation:
+Hard tenant isolation:
 
 -   user_id on all entities
 -   FK enforcement
@@ -105,14 +130,14 @@ Hard multi-tenant isolation:
 -   Route-level filtering
 -   Service-level filtering
 -   Analytics-level filtering
--   CLI ownership enforcement
+-   CLI isolation
 
 Authentication:
 
--   JWT tokens
--   Argon2 hashing
+-   JWT-based auth
+-   Argon2 password hashing
 -   OAuth2 flow
--   No global access paths
+-   No global bypass paths
 
 ------------------------------------------------------------------------
 
@@ -120,14 +145,14 @@ Authentication:
 
 Self-hosted via Docker:
 
-``` bash
 docker compose up -d --build
-```
 
-Required environment variables:
+Environment variables:
 
 -   DATABASE_URL
 -   JWT_SECRET
+
+Production frontend is served via Docker (static build).
 
 ------------------------------------------------------------------------
 
@@ -136,37 +161,36 @@ Required environment variables:
 ## Phase 0 -- Research Engine
 
 ✔ Domain models\
-✔ Metrics engine\
-✔ Equity curve\
+✔ R-based capital compounding\
+✔ Equity builder\
 ✔ Monte Carlo\
 ✔ Risk of ruin\
 ✔ Walk forward\
-✔ Variant analytics
+✔ Kelly log-growth optimization
 
 ## Phase 1 -- Multi-User Core
 
 ✔ Hard tenant isolation\
-✔ Ownership constraints\
-✔ Indexed user_id\
+✔ Indexed ownership\
+✔ Tenant-aware constraints\
 ✔ CLI isolation\
-✔ Alembic reset
-
-------------------------------------------------------------------------
-
-# Upcoming Roadmap
+✔ Auth layer
 
 ## Phase 2 -- Persisted Analytics Layer
 
-Goal: deterministic snapshot-based analytics.
+✔ RunAnalytics snapshot\
+✔ VariantAnalytics snapshot\
+✔ StrategyAnalytics snapshot\
+✔ PortfolioAnalytics snapshot\
+✔ Dirty-flag propagation\
+✔ No auto-recompute on read\
+✔ Deterministic research state
 
--   RunAnalytics model
--   Snapshot storage (JSONB)
--   Explicit compute endpoint
--   Dirty-flag invalidation
--   No auto-recompute on read
--   Deterministic research state
+System now operates as a fully hierarchical analytics engine.
 
 ------------------------------------------------------------------------
+
+# Roadmap
 
 ## Phase 3 -- Admin Layer
 
@@ -198,8 +222,8 @@ Goal: professional research interface.
 -   Clean dashboard layout
 -   Proper chart axis labeling
 -   Improved chart ergonomics
--   Visual refinement
--   Research-focused UX
+-   Institutional research UX
+-   Hierarchical navigation clarity
 
 ------------------------------------------------------------------------
 
@@ -218,7 +242,7 @@ Goal: extensibility without core modification.
 
 -   Regime clustering
 -   Cross-asset correlation analysis
--   Portfolio-level analytics
+-   Advanced portfolio analytics
 -   Position sizing simulations
 -   Scenario stress testing
 

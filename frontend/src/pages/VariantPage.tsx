@@ -6,6 +6,9 @@ import { formatCurrency } from '../utils/format';
 import { getVariant, listRunsForVariant } from '../api/variants';
 import { getSystem } from '../api/systems';
 import CreateRunModal from '../components/modals/CreateRunModal';
+import { getVariantAnalytics, computeVariantAnalytics } from '../api/variants';
+import Breadcrumbs from '../components/Breadcrumbs';
+import Button from '../components/Button';
 
 export default function VariantPage() {
   const { variantId } = useParams();
@@ -16,6 +19,8 @@ export default function VariantPage() {
   const [systemName, setSystemName] = useState<string>('');
   const [runs, setRuns] = useState<any[]>([]);
   const [openRun, setOpenRun] = useState(false);
+  const [analytics, setAnalytics] = useState<any | null>(null);
+  const [computing, setComputing] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -37,6 +42,13 @@ export default function VariantPage() {
         // Fetch runs for variant
         const r = await listRunsForVariant(variantId);
         if (!cancelled) setRuns(r);
+        // Fetch analytics snapshot
+        try {
+          const a = await getVariantAnalytics(variantId);
+          if (!cancelled) setAnalytics(a);
+        } catch {
+          if (!cancelled) setAnalytics(null);
+        }
       } catch (e: any) {
         if (!cancelled) setError(e?.response?.data?.detail ?? e.message);
       } finally {
@@ -53,8 +65,80 @@ export default function VariantPage() {
 
   return (
     <div>
-      <div className="page-title mb-2">{variant.display_name || variant.name}</div>
-      <div className="subline mb-4">Variant v{variant.version}</div>
+      <Breadcrumbs items={[
+        { label: 'Portfolio', to: '/portfolio' },
+        { label: 'Strategies', to: '/systems' },
+        { label: systemName || 'System', to: `/systems/${variant.strategy_id}` },
+        { label: 'Variant' }
+      ]} />
+      <div className="page-title mb-1">{variant.display_name || variant.name}</div>
+      <div className="subline">Variant v{variant.version}</div>
+      <div className="border-b border-neutral-800 mb-4"></div>
+
+      {analytics && (
+        <div className="card p-4 mb-4">
+          <div className="flex items-center justify-between mb-2">
+            <div className="section-title">Variant Analytics</div>
+            <div className="flex items-center gap-2">
+              {analytics.is_dirty && <span className="badge">Variant analytics outdated</span>}
+              <Button
+                variant="primary"
+                disabled={computing}
+                onClick={async () => {
+                  if (!variantId) return;
+                  setComputing(true);
+                  try {
+                    await computeVariantAnalytics(variantId);
+                    setAnalytics({ ...analytics, is_dirty: false });
+                    const snap = await getVariantAnalytics(variantId);
+                    setAnalytics(snap);
+                  } finally {
+                    setComputing(false);
+                  }
+                }}
+              >
+                {computing ? 'Computing…' : 'Recompute Variant'}
+              </Button>
+            </div>
+          </div>
+          <div className={analytics.is_dirty ? 'opacity-60' : ''}>
+            <div className="grid grid-cols-4 gap-3">
+              <div className="card p-3">
+                <div className="meta">Aggregated Expectancy</div>
+                <div>{analytics.aggregated_metrics.mean_expectancy ?? '—'}</div>
+              </div>
+              <div className="card p-3">
+                <div className="meta">Std Expectancy</div>
+                <div>{analytics.aggregated_metrics.std_expectancy ?? '—'}</div>
+              </div>
+              <div className="card p-3">
+                <div className="meta">Mean Log Growth</div>
+                <div>{analytics.aggregated_metrics.mean_log_growth ?? '—'}</div>
+              </div>
+              <div className="card p-3">
+                <div className="meta">Mean Max Drawdown</div>
+                <div>{analytics.aggregated_metrics.mean_max_drawdown ?? '—'}</div>
+              </div>
+              <div className="card p-3">
+                <div className="meta">Best Run Expectancy</div>
+                <div>{analytics.aggregated_metrics.best_run_expectancy ?? '—'}</div>
+              </div>
+              <div className="card p-3">
+                <div className="meta">Worst Run Expectancy</div>
+                <div>{analytics.aggregated_metrics.worst_run_expectancy ?? '—'}</div>
+              </div>
+              <div className="card p-3">
+                <div className="meta">Run Count</div>
+                <div>{analytics.run_count}</div>
+              </div>
+              <div className="card p-3">
+                <div className="meta">Last Updated</div>
+                <div className="meta">{analytics.updated_at ?? '—'}</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {variant.description && (
         <div className="card p-4 mb-4">

@@ -3,10 +3,12 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from edge_lab.api.routes import runs, variants, systems, trades, portfolio
 from edge_lab.api.routes import auth
+from edge_lab.api.routes import admin
 
 app = FastAPI(title="edge lab API")
 
 app.include_router(auth.router)
+app.include_router(admin.router)
 
 app.include_router(trades.router, prefix="/trades")
 app.include_router(runs.router, prefix="/runs")

@@ -9,13 +9,21 @@ import VariantPage from './pages/VariantPage';
 import SystemPage from './pages/SystemPage';
 import Login from './pages/Login';
 import { ProtectedRoute } from './auth/AuthContext';
+import PortfolioPage from './pages/PortfolioPage';
+import ManualBacktestingPage from './pages/ManualBacktestingPage';
+import PortfolioListPage from './pages/PortfolioListPage';
+import PortfolioBootstrap from './pages/PortfolioBootstrap';
 
 export default function App() {
   return (
     <Layout>
       <Routes>
         <Route path="/login" element={<Login />} />
-        <Route path="/" element={<Navigate to="/runs" replace />} />
+        <Route path="/" element={<ProtectedRoute><PortfolioBootstrap /></ProtectedRoute>} />
+        <Route path="/portfolio" element={<ProtectedRoute><PortfolioListPage /></ProtectedRoute>} />
+        <Route path="/portfolio/:portfolioId" element={<ProtectedRoute><PortfolioPage /></ProtectedRoute>} />
+        <Route path="/dashboard" element={<ProtectedRoute><PortfolioPage /></ProtectedRoute>} />
+        <Route path="/manual" element={<ProtectedRoute><ManualBacktestingPage /></ProtectedRoute>} />
         <Route path="/runs" element={<ProtectedRoute><RunsList /></ProtectedRoute>} />
         <Route path="/runs/:runId" element={<ProtectedRoute><RunPage /></ProtectedRoute>} />
         <Route path="/systems" element={<ProtectedRoute><SystemsPage /></ProtectedRoute>} />

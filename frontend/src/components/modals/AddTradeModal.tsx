@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react';
 import { createTrade } from '../../api/trades';
 import type { Trade } from '../../types';
+import Button from '../Button';
 
 type AnyTrade = Trade & {
   stop_loss?: number;
@@ -135,7 +136,21 @@ export default function AddTradeModal({ runId, open, onClose, onAdd }: Props) {
           </div>
           <div>
             <label className="text-xs text-text-muted">Timestamp</label>
-            <input className="input w-full" type="datetime-local" value={timestamp} onChange={(e) => setTimestamp(e.target.value)} />
+            <div className="flex items-center gap-2">
+              <input className="input w-full" type="datetime-local" value={timestamp} onChange={(e) => setTimestamp(e.target.value)} />
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => {
+                  const d = new Date();
+                  const pad = (n: number) => String(n).padStart(2, '0');
+                  const s = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+                  setTimestamp(s);
+                }}
+              >
+                Now
+              </Button>
+            </div>
           </div>
           <div>
             <label className="text-xs text-text-muted">Timeframe</label>

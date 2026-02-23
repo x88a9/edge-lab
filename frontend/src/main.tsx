@@ -4,12 +4,15 @@ import { BrowserRouter } from 'react-router-dom';
 import './styles/tailwind.css';
 import App from './App';
 import { AuthProvider } from './auth/AuthContext';
+import { PortfolioProvider } from './context/PortfolioContext';
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
     <AuthProvider>
       <BrowserRouter>
-        <App />
+        <PortfolioProvider>
+          <App />
+        </PortfolioProvider>
       </BrowserRouter>
     </AuthProvider>
   </React.StrictMode>

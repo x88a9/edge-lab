@@ -19,9 +19,11 @@ export default function Sidebar() {
       </div>
       <div className="border-b border-neutral-900" />
       <nav className="text-sm">
+        <NavLink to="/portfolio" className={linkClass}>Portfolio</NavLink>
         <NavLink to="/systems" className={linkClass}>Systems</NavLink>
         <NavLink to="/variants" className={linkClass}>Variants</NavLink>
         <NavLink to="/runs" className={linkClass}>Runs</NavLink>
+        <NavLink to="/manual" className={linkClass}>Manual Backtesting</NavLink>
       </nav>
     </aside>
   );

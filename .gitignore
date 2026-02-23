@@ -45,3 +45,6 @@ Thumbs.db
 
 # Docker volumes (local)
 docker/db_data/
+
+# custom
+backend/test.txt

@@ -131,3 +131,52 @@ export interface AnalyticsSnapshot {
   is_dirty: boolean;
   updated_at?: string;
 }
+
+export interface VariantAggregatedMetrics {
+  mean_expectancy: number | null;
+  mean_log_growth: number | null;
+  mean_sharpe?: number | null;
+  mean_max_drawdown?: number | null;
+  std_expectancy?: number | null;
+  best_run_expectancy?: number | null;
+  worst_run_expectancy?: number | null;
+}
+
+export interface VariantAnalyticsSnapshot {
+  aggregated_metrics: VariantAggregatedMetrics;
+  run_count: number;
+  is_dirty: boolean;
+  updated_at?: string;
+}
+
+export interface SystemAggregatedMetrics {
+  mean_expectancy: number | null;
+  mean_log_growth: number | null;
+}
+
+export interface SystemAnalyticsSnapshot {
+  aggregated_metrics: SystemAggregatedMetrics;
+  variant_count: number;
+  is_dirty: boolean;
+  updated_at?: string;
+}
+
+export interface PortfolioCombinedMetrics {
+  combined_mean_log_growth: number;
+  combined_expectancy: number;
+}
+
+export interface PortfolioCombinedEquity {
+  equity: number[];
+}
+
+export interface PortfolioSnapshot {
+  name: string;
+  allocation_mode: string;
+  allocation_config?: any;
+  combined_metrics: PortfolioCombinedMetrics;
+  combined_equity: PortfolioCombinedEquity;
+  strategy_count: number;
+  is_dirty: boolean;
+  updated_at?: string;
+}
