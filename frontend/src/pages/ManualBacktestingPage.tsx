@@ -5,13 +5,17 @@ import { listVariantsForSystem } from '../api/systems';
 import { createTrade } from '../api/trades';
 import { listVariants } from '../api/variants';
 import { listTradesForRun } from '../api/runs';
+import { listUserVariants, listUserRunTrades } from '../api/admin';
 import Breadcrumbs from '../components/Breadcrumbs';
 import Button from '../components/Button';
 import TradesTable from '../components/TradesTable';
+import { useAdminInspection } from '../context/AdminInspectionContext';
 
 export default function ManualBacktestingPage() {
   const { data: systems } = useSystems();
   const { data: runs } = useRuns();
+  const { inspectionMode, inspectedUserId } = useAdminInspection();
+  if (inspectionMode) return null;
   const [systemId, setSystemId] = useState<string>('');
   const [variantId, setVariantId] = useState<string>('');
   const [variantIds, setVariantIds] = useState<string[]>([]);
@@ -30,16 +34,32 @@ export default function ManualBacktestingPage() {
   const [count, setCount] = useState<number>(0);
 
   useEffect(() => {
-    if (!systemId) {
-      listVariants()
-        .then((vs) => { setAvailableVariants(vs); setVariantIds(vs.map((v: any) => v.id)); })
-        .catch(() => { setAvailableVariants([]); setVariantIds([]); });
-      return;
+    async function fetchVariants() {
+      try {
+        if (!systemId) {
+          const vs = inspectionMode && inspectedUserId ? await listUserVariants(inspectedUserId) : await listVariants();
+          setAvailableVariants(vs);
+          setVariantIds(vs.map((v: any) => v.id));
+          return;
+        }
+        // If system selected, prefer filtering client-side when in inspection
+        if (inspectionMode && inspectedUserId) {
+          const vs = await listUserVariants(inspectedUserId);
+          const filtered = vs.filter((v: any) => v.system_id === systemId);
+          setAvailableVariants(filtered);
+          setVariantIds(filtered.map((v: any) => v.id));
+        } else {
+          const vs = await listVariantsForSystem(systemId);
+          setAvailableVariants(vs);
+          setVariantIds(vs.map((v: any) => v.id));
+        }
+      } catch {
+        setAvailableVariants([]);
+        setVariantIds([]);
+      }
     }
-    listVariantsForSystem(systemId)
-      .then((vs) => { setAvailableVariants(vs); setVariantIds(vs.map((v: any) => v.id)); })
-      .catch(() => { setAvailableVariants([]); setVariantIds([]); });
-  }, [systemId]);
+    fetchVariants();
+  }, [systemId, inspectionMode, inspectedUserId]);
 
   const filteredRuns = useMemo(() => {
     if (variantId) return runs.filter((r: any) => r.variant_id === variantId);
@@ -49,10 +69,21 @@ export default function ManualBacktestingPage() {
 
   useEffect(() => {
     if (!runId) { setTrades([]); return; }
-    listTradesForRun(runId)
-      .then(setTrades)
-      .catch(() => setTrades([]));
-  }, [runId]);
+    async function fetchTrades() {
+      try {
+        if (inspectionMode && inspectedUserId) {
+          const ts = await listUserRunTrades(inspectedUserId, runId);
+          setTrades(ts);
+        } else {
+          const ts = await listTradesForRun(runId);
+          setTrades(ts);
+        }
+      } catch {
+        setTrades([]);
+      }
+    }
+    fetchTrades();
+  }, [runId, inspectionMode, inspectedUserId]);
 
   const validStop = useMemo(() => {
     const e = Number(entry);
@@ -213,7 +244,7 @@ export default function ManualBacktestingPage() {
         {error && <div className="mt-2 text-sm text-red-400">{error}</div>}
         <div className="mt-4 flex justify-end gap-2">
           <Button variant="secondary" onClick={reset}>Reset</Button>
-          <Button variant="primary" disabled={saving || !canSubmit} onClick={submit}>Add Trade</Button>
+          <Button variant="primary" disabled={inspectionMode || saving || !canSubmit} onClick={submit}>Add Trade</Button>
         </div>
       </div>
       {runId && (

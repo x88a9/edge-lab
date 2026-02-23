@@ -1,9 +1,11 @@
 import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
+import apiClient from '../api/apiClient';
 
 interface AuthContextValue {
   token: string | null;
   login: (token: string) => void;
   logout: () => void;
+  currentUser: { email?: string; is_admin?: boolean } | null;
 }
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
@@ -16,6 +18,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return null;
     }
   });
+  const [currentUser, setCurrentUser] = useState<{ email?: string; is_admin?: boolean } | null>(null);
 
   useEffect(() => {
     try {
@@ -24,7 +27,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } catch {}
   }, [token]);
 
+  useEffect(() => {
+    async function fetchMe() {
+      if (!token) { setCurrentUser(null); return; }
+      try {
+        const { data } = await apiClient.get('/auth/me');
+        setCurrentUser({ email: data?.email, is_admin: !!data?.is_admin });
+      } catch {
+        setCurrentUser(null);
+      }
+    }
+    fetchMe();
+  }, [token]);
+
   const login = (t: string) => {
+    try { localStorage.setItem('token', t); } catch {}
     setToken(t);
   };
 
@@ -36,7 +53,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const value = useMemo(() => ({ token, login, logout }), [token]);
+  const value = useMemo(() => ({ token, login, logout, currentUser }), [token, currentUser]);
 
   return (
     <AuthContext.Provider value={value}>
@@ -61,5 +78,12 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
     }
     return null;
   }
+  return <>{children}</>;
+}
+
+export function AdminRoute({ children }: { children: React.ReactNode }) {
+  const { token, currentUser } = useAuth();
+  const isAdmin = !!token && !!currentUser?.is_admin;
+  if (!isAdmin) return null;
   return <>{children}</>;
 }

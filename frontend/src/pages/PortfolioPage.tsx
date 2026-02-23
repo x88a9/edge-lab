@@ -4,6 +4,7 @@ import { getPortfolio, computePortfolio } from '../api/portfolio';
 import Breadcrumbs from '../components/Breadcrumbs';
 import Button from '../components/Button';
 import type { PortfolioSnapshot } from '../types';
+import { useAdminInspection } from '../context/AdminInspectionContext';
 
 export default function PortfolioPage() {
   const navigate = useNavigate();
@@ -12,6 +13,7 @@ export default function PortfolioPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [computing, setComputing] = useState(false);
+  const { inspectionMode } = useAdminInspection();
 
   useEffect(() => {
     let cancelled = false;
@@ -60,15 +62,25 @@ export default function PortfolioPage() {
             {data.is_dirty && <span className="badge">Portfolio analytics outdated</span>}
             <Button
               variant="primary"
-              disabled={computing}
+              disabled={inspectionMode || computing}
               onClick={async () => {
+                if (!portfolioId) return;
                 setComputing(true);
                 try {
-                  if (!portfolioId) return;
                   await computePortfolio(portfolioId);
-                  setData({ ...data, is_dirty: false } as any);
-                  const snap = await getPortfolio(portfolioId);
-                  setData(snap);
+                  let attempts = 0;
+                  let snap: PortfolioSnapshot | null = null;
+                  const startingUpdatedAt = data?.updated_at ?? null;
+                  while (attempts < 10) {
+                    const fresh = await getPortfolio(portfolioId);
+                    snap = fresh;
+                    const updatedChanged = startingUpdatedAt !== fresh.updated_at;
+                    const notDirty = !fresh.is_dirty;
+                    if (updatedChanged || notDirty) break;
+                    await new Promise((res) => setTimeout(res, 800));
+                    attempts += 1;
+                  }
+                  if (snap) setData(snap);
                 } finally {
                   setComputing(false);
                 }

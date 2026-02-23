@@ -9,6 +9,8 @@ import type { Variant, System } from '../types';
 import { useNavigate } from 'react-router-dom';
 import { useRuns } from '../hooks/useRuns';
 import Button from '../components/Button';
+import { useAdminInspection } from '../context/AdminInspectionContext';
+import { listUserVariants } from '../api/admin';
 
 export default function SystemsPage() {
   const { data, loading, error, refetch } = useSystems();
@@ -18,6 +20,7 @@ export default function SystemsPage() {
   const [toast, setToast] = useState<string | null>(null);
   const navigate = useNavigate();
   const { data: runsData } = useRuns();
+  const { inspectionMode, inspectedUserId } = useAdminInspection();
 
   // Expanded systems and cached variants per system
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
@@ -36,7 +39,13 @@ export default function SystemsPage() {
     if (!variantsBySystem[system.id]) {
       setLoadingVariants((prev) => ({ ...prev, [system.id]: true }));
       try {
-        const variants = await listVariantsForSystem(system.id);
+        let variants: any[] = [];
+        if (inspectionMode && inspectedUserId) {
+          const all = await listUserVariants(inspectedUserId);
+          variants = (all || []).filter((v: any) => v.strategy_id === system.id || v.system_id === system.id);
+        } else {
+          variants = await listVariantsForSystem(system.id);
+        }
         setVariantsBySystem((prev) => ({ ...prev, [system.id]: variants }));
       } catch (e) {
         console.warn('Failed to load variants for system', system.id, e);
@@ -60,9 +69,11 @@ export default function SystemsPage() {
         <div className="card p-3"><div className="meta">Total Runs</div><div className="text-lg font-semibold">{(runsData || []).length}</div></div>
         <div className="card p-3"><div className="meta">Active Runs</div><div className="text-lg font-semibold">{(runsData || []).filter((r: any) => r.status === 'open').length}</div></div>
       </div>
-      <div className="mb-3 flex justify-end">
-        <Button variant="primary" onClick={() => setOpenStrategy(true)}>+ Create System</Button>
-      </div>
+      {!inspectionMode && (
+        <div className="mb-3 flex justify-end">
+          <Button variant="primary" onClick={() => setOpenStrategy(true)}>+ Create System</Button>
+        </div>
+      )}
 
       {loading ? (
         <div className="card p-4"><div className="meta">Loading systems…</div></div>
@@ -82,7 +93,9 @@ export default function SystemsPage() {
             { key: 'created_at', label: 'Created', muted: true },
             { key: 'actions', label: 'Actions', render: (s: any) => (
               <div className="flex gap-2 justify-end">
-                <Button variant="secondary" onClick={(e: any) => { e.stopPropagation(); setSelectedSystemId(s.id); setOpenVariant(true); }}>+ New Variant</Button>
+                {!inspectionMode && (
+                  <Button variant="secondary" onClick={(e: any) => { e.stopPropagation(); setSelectedSystemId(s.id); setOpenVariant(true); }}>+ New Variant</Button>
+                )}
                 <Button variant="ghost" onClick={(e: any) => { e.stopPropagation(); toggleVariants(s); }}>{expanded.has(s.id) ? 'Hide Variants' : 'Show Variants'}</Button>
               </div>
             ), align: 'right' },
@@ -119,7 +132,7 @@ export default function SystemsPage() {
         );
       })}
 
-      {openStrategy && (
+      {!inspectionMode && openStrategy && (
         <CreateStrategyModal
           open={openStrategy}
           onClose={() => setOpenStrategy(false)}
@@ -127,7 +140,7 @@ export default function SystemsPage() {
         />
       )}
 
-      {openVariant && selectedSystemId && (
+      {!inspectionMode && openVariant && selectedSystemId && (
         <CreateVariantModal
           open={openVariant}
           strategyId={selectedSystemId}

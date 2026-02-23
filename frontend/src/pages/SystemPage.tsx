@@ -5,6 +5,7 @@ import { getSystem, listVariantsForSystem, getSystemAnalytics, computeSystemAnal
 import CreateVariantModal from '../components/modals/CreateVariantModal';
 import Button from '../components/Button';
 import Breadcrumbs from '../components/Breadcrumbs';
+import { useAdminInspection } from '../context/AdminInspectionContext';
 
 export default function SystemPage() {
   const { systemId } = useParams();
@@ -16,6 +17,7 @@ export default function SystemPage() {
   const [openVariant, setOpenVariant] = useState(false);
   const [analytics, setAnalytics] = useState<any | null>(null);
   const [computing, setComputing] = useState(false);
+  const { inspectionMode } = useAdminInspection();
 
   useEffect(() => {
     let cancelled = false;
@@ -70,7 +72,7 @@ export default function SystemPage() {
               {analytics.is_dirty && <span className="badge">System analytics outdated</span>}
               <Button
                 variant="primary"
-                disabled={computing}
+                disabled={inspectionMode || computing}
                 onClick={async () => {
                   if (!systemId) return;
                   setComputing(true);
@@ -122,7 +124,9 @@ export default function SystemPage() {
         <div className="card-header px-4 py-3 flex items-center justify-between">
           <div className="card-title">Variants for this system</div>
           <div>
-            <Button variant="primary" onClick={() => setOpenVariant(true)}>+ New Variant</Button>
+            {!inspectionMode && (
+              <Button variant="primary" onClick={() => setOpenVariant(true)}>+ New Variant</Button>
+            )}
           </div>
         </div>
         <div className="p-0">
@@ -140,7 +144,7 @@ export default function SystemPage() {
         </div>
       </div>
 
-      {openVariant && (
+      {!inspectionMode && openVariant && (
         <CreateVariantModal
           open={openVariant}
           strategyId={system.id}

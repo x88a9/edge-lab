@@ -1,7 +1,6 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from pydantic import BaseModel, EmailStr
-from typing import List
 import uuid
 
 from edge_lab.persistence.database import get_db
@@ -74,6 +73,75 @@ def admin_overview(
         "total_trades": db.query(Trade).count(),
         "total_portfolios": db.query(PortfolioAnalytics).count(),
     }
+
+
+# ==========================================================
+# ADMIN USER CREATION
+# ==========================================================
+
+class AdminCreateUserRequest(BaseModel):
+    email: EmailStr
+    password: str
+    is_admin: bool
+    is_active: bool | None = True
+
+
+@router.post("/users")
+def create_user(
+    payload: AdminCreateUserRequest,
+    db: Session = Depends(get_db),
+    admin: User = Depends(require_admin_user),
+):
+    existing = db.query(User).filter(User.email == payload.email).first()
+    if existing:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Email already registered",
+        )
+
+    user = User(
+        email=payload.email,
+        password_hash=hash_password(payload.password),
+        is_admin=payload.is_admin,
+        is_active=payload.is_active if payload.is_active is not None else True,
+    )
+
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+
+    return {
+        "id": user.id,
+        "email": user.email,
+        "is_admin": user.is_admin,
+        "is_active": user.is_active,
+        "created_at": user.created_at,
+    }
+
+
+# ==========================================================
+# ADMIN PASSWORD RESET
+# ==========================================================
+
+class AdminResetPasswordRequest(BaseModel):
+    new_password: str
+
+
+@router.put("/users/{user_id}/reset-password")
+def reset_password(
+    user_id: str,
+    payload: AdminResetPasswordRequest,
+    db: Session = Depends(get_db),
+    admin: User = Depends(require_admin_user),
+):
+    user = db.get(User, uuid.UUID(user_id))
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    user.password_hash = hash_password(payload.new_password)
+    db.commit()
+
+    return {"status": "password_reset"}
 
 
 # ==========================================================

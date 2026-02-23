@@ -1,7 +1,11 @@
 import { NavLink } from 'react-router-dom';
 import logo from '../assets/edge-logo.svg';
+import { useAuth } from '../auth/AuthContext';
+import { useAdminInspection } from '../context/AdminInspectionContext';
 
 export default function Sidebar() {
+  const { currentUser } = useAuth();
+  const { inspectionMode } = useAdminInspection();
   const linkClass = ({ isActive }: { isActive: boolean }) => [
     'block px-4 py-2.5 transition-all duration-150',
     'border-b border-neutral-900',
@@ -23,7 +27,8 @@ export default function Sidebar() {
         <NavLink to="/systems" className={linkClass}>Systems</NavLink>
         <NavLink to="/variants" className={linkClass}>Variants</NavLink>
         <NavLink to="/runs" className={linkClass}>Runs</NavLink>
-        <NavLink to="/manual" className={linkClass}>Manual Backtesting</NavLink>
+        {!inspectionMode ? <NavLink to="/manual" className={linkClass}>Manual Backtesting</NavLink> : null}
+        {currentUser?.is_admin ? <NavLink to="/admin" className={linkClass}>Admin</NavLink> : null}
       </nav>
     </aside>
   );

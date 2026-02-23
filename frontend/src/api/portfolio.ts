@@ -31,3 +31,12 @@ export async function computePortfolio(portfolioId: string): Promise<{ status: s
   const { data } = await apiClient.post(`/portfolio/${portfolioId}/compute`);
   return data;
 }
+
+export async function createPortfolio(payload: {
+  name: string;
+  allocation_mode: 'equal_weight' | 'kelly_weighted' | 'fixed_weight';
+  allocation_config?: Record<string, any> | null;
+}): Promise<{ id: string }> {
+  const { data } = await apiClient.post('/portfolio/', payload);
+  return data;
+}

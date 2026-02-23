@@ -5,6 +5,7 @@ import Toast from '../components/Toast';
 import { getSystem } from '../api/systems';
 import DataTable from '../components/DataTable';
 import { useNavigate } from 'react-router-dom';
+import { useAdminInspection } from '../context/AdminInspectionContext';
 
 export default function VariantsPage() {
   const { data, loading, error } = useVariants();
@@ -13,6 +14,7 @@ export default function VariantsPage() {
   const [toast, setToast] = useState<string | null>(null);
   const [strategyNames, setStrategyNames] = useState<Record<string, string>>({});
   const navigate = useNavigate();
+  const { inspectionMode } = useAdminInspection();
 
   useEffect(() => {
     const ids = Array.from(new Set(data.map((v) => v.strategy_id))).filter(Boolean);
@@ -44,7 +46,9 @@ export default function VariantsPage() {
           { key: 'description', label: 'Description' },
           { key: 'actions', label: 'Actions', render: (v: any) => (
             <div className="flex justify-end">
-              <button className="btn" onClick={(e) => { e.stopPropagation(); setSelectedVariantId(v.id); setOpenRun(true); }}>+ New Run</button>
+              {!inspectionMode && (
+                <button className="btn" onClick={(e) => { e.stopPropagation(); setSelectedVariantId(v.id); setOpenRun(true); }}>+ New Run</button>
+              )}
             </div>
           ), align: 'right' },
         ]}
@@ -53,7 +57,7 @@ export default function VariantsPage() {
         onRowClick={(v: any) => navigate(`/variants/${v.id}`)}
       />
 
-      {openRun && selectedVariantId && (
+      {!inspectionMode && openRun && selectedVariantId && (
         <CreateRunModal
           open={openRun}
           variantId={selectedVariantId}

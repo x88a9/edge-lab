@@ -8,11 +8,13 @@ import TradesPage from './pages/TradesPage';
 import VariantPage from './pages/VariantPage';
 import SystemPage from './pages/SystemPage';
 import Login from './pages/Login';
-import { ProtectedRoute } from './auth/AuthContext';
+import { ProtectedRoute, AdminRoute } from './auth/AuthContext';
 import PortfolioPage from './pages/PortfolioPage';
 import ManualBacktestingPage from './pages/ManualBacktestingPage';
 import PortfolioListPage from './pages/PortfolioListPage';
 import PortfolioBootstrap from './pages/PortfolioBootstrap';
+import AdminDashboard from './pages/AdminDashboard';
+import AdminUsersPage from './pages/AdminUsersPage';
 
 export default function App() {
   return (
@@ -31,6 +33,8 @@ export default function App() {
         <Route path="/variants" element={<ProtectedRoute><VariantsPage /></ProtectedRoute>} />
         <Route path="/variants/:variantId" element={<ProtectedRoute><VariantPage /></ProtectedRoute>} />
         <Route path="/trades" element={<ProtectedRoute><TradesPage /></ProtectedRoute>} />
+        <Route path="/admin" element={<ProtectedRoute><AdminRoute><AdminDashboard /></AdminRoute></ProtectedRoute>} />
+        <Route path="/admin/users" element={<ProtectedRoute><AdminRoute><AdminUsersPage /></AdminRoute></ProtectedRoute>} />
       </Routes>
     </Layout>
   );

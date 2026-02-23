@@ -18,6 +18,7 @@ import WalkForwardPanel from '../components/analytics/WalkForwardPanel';
 import RegimeAnalysisPanel from '../components/analytics/RegimeAnalysisPanel';
 import { computeAnalytics, getAnalyticsSnapshot } from '../api/runs';
 import Button from '../components/Button';
+import { useAdminInspection } from '../context/AdminInspectionContext';
 
 export default function RunPage() {
   const { runId } = useParams();
@@ -30,6 +31,7 @@ export default function RunPage() {
   const [analyticsError, setAnalyticsError] = useState<string | null>(null);
   const [analyticsMissing, setAnalyticsMissing] = useState(false);
   const [computing, setComputing] = useState(false);
+  const { inspectionMode } = useAdminInspection();
 
   const loadAnalytics = async () => {
     if (!run?.id) return;
@@ -218,15 +220,19 @@ export default function RunPage() {
           <div className="flex items-center justify-between mb-2">
             <div className="section-title">Trades</div>
             <div className="flex items-center gap-2">
-              <button className="btn-primary" onClick={() => setAddOpen(true)}>+ Add Trade</button>
-              <button
-                className="btn"
-                aria-label="Run settings"
-                title="Run settings"
-                onClick={() => setSettingsOpen(true)}
-              >
-                ⚙️ Settings
-              </button>
+              {!inspectionMode && (
+                <>
+                  <button className="btn-primary" onClick={() => setAddOpen(true)}>+ Add Trade</button>
+                  <button
+                    className="btn"
+                    aria-label="Run settings"
+                    title="Run settings"
+                    onClick={() => setSettingsOpen(true)}
+                  >
+                    ⚙️ Settings
+                  </button>
+                </>
+              )}
             </div>
           </div>
           <TradesTable trades={trades as any} onChange={(updated) => setTrades(updated as any)} />
@@ -241,7 +247,7 @@ export default function RunPage() {
               {analytics?.is_dirty && <span className="badge-warning">Outdated</span>}
               <Button
                 variant="primary"
-                disabled={computing || analyticsLoading}
+                disabled={inspectionMode || computing || analyticsLoading}
                 onClick={async () => {
                   setComputing(true);
                   try {
@@ -303,7 +309,7 @@ export default function RunPage() {
         </section>
       )}
 
-      {addOpen && (
+      {!inspectionMode && addOpen && (
         <AddTradeModal
           runId={run.id}
           open={addOpen}
@@ -314,7 +320,7 @@ export default function RunPage() {
         />
       )}
 
-      {settingsOpen && (
+      {!inspectionMode && settingsOpen && (
         <FinishRunModal
           runId={run.id}
           open={settingsOpen}

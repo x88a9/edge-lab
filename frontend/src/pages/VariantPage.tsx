@@ -9,6 +9,7 @@ import CreateRunModal from '../components/modals/CreateRunModal';
 import { getVariantAnalytics, computeVariantAnalytics } from '../api/variants';
 import Breadcrumbs from '../components/Breadcrumbs';
 import Button from '../components/Button';
+import { useAdminInspection } from '../context/AdminInspectionContext';
 
 export default function VariantPage() {
   const { variantId } = useParams();
@@ -21,6 +22,7 @@ export default function VariantPage() {
   const [openRun, setOpenRun] = useState(false);
   const [analytics, setAnalytics] = useState<any | null>(null);
   const [computing, setComputing] = useState(false);
+  const { inspectionMode } = useAdminInspection();
 
   useEffect(() => {
     let cancelled = false;
@@ -83,7 +85,7 @@ export default function VariantPage() {
               {analytics.is_dirty && <span className="badge">Variant analytics outdated</span>}
               <Button
                 variant="primary"
-                disabled={computing}
+                disabled={inspectionMode || computing}
                 onClick={async () => {
                   if (!variantId) return;
                   setComputing(true);
@@ -151,7 +153,9 @@ export default function VariantPage() {
         <div className="card-header px-4 py-3 flex items-center justify-between">
           <div className="card-title">Runs for this variant</div>
           <div>
-            <button className="btn" onClick={() => setOpenRun(true)}>+ New Run</button>
+            {!inspectionMode && (
+              <button className="btn" onClick={() => setOpenRun(true)}>+ New Run</button>
+            )}
           </div>
         </div>
         <div className="p-0">
@@ -171,7 +175,7 @@ export default function VariantPage() {
         </div>
       </div>
 
-      {openRun && variantId && (
+      {!inspectionMode && openRun && variantId && (
         <CreateRunModal
           open={openRun}
           variantId={variantId}

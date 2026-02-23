@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import { System } from '../types';
 import { listSystems } from '../api/systems';
+import { useAdminInspection } from '../context/AdminInspectionContext';
+import { listUserSystems } from '../api/admin';
 
 function toErrorMessage(e: any): string {
   const detail = e?.response?.data?.detail;
@@ -17,12 +19,18 @@ export function useSystems() {
   const [data, setData] = useState<System[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const { inspectionMode, inspectedUserId } = useAdminInspection();
 
   const fetch = async () => {
     setLoading(true);
     setError(null);
     try {
-      const systems = await listSystems();
+      let systems: any[] = [];
+      if (inspectionMode && inspectedUserId) {
+        systems = await listUserSystems(inspectedUserId);
+      } else {
+        systems = await listSystems();
+      }
       setData(systems);
     } catch (e: any) {
       setError(toErrorMessage(e));
@@ -37,7 +45,7 @@ export function useSystems() {
     return () => {
       active = false;
     };
-  }, []);
+  }, [inspectionMode, inspectedUserId]);
 
   return { data, loading, error, refetch: fetch };
 }

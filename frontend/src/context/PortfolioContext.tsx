@@ -1,5 +1,8 @@
 import { createContext, useContext, useEffect, useState } from 'react';
 import { listPortfolios } from '../api/portfolio';
+import { useAdminInspection } from './AdminInspectionContext';
+import { listUserPortfolios } from '../api/admin';
+import { useAuth } from '../auth/AuthContext';
 
 interface PortfolioSummary {
   id: string;
@@ -26,12 +29,24 @@ export function PortfolioProvider({ children }: { children: any }) {
   const [currentPortfolioId, setCurrentPortfolioId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const { inspectionMode, inspectedUserId } = useAdminInspection();
+  const { token } = useAuth();
 
   const fetch = async () => {
     setLoading(true);
     setError(null);
     try {
-      const list = await listPortfolios();
+      if (!token) {
+        setList([]);
+        setError(null);
+        return;
+      }
+      let list: PortfolioSummary[] = [];
+      if (inspectionMode && inspectedUserId) {
+        list = await listUserPortfolios(inspectedUserId);
+      } else {
+        list = await listPortfolios();
+      }
       setList(list);
     } catch (e: any) {
       setError(e?.response?.data?.detail ?? e.message);
@@ -42,7 +57,7 @@ export function PortfolioProvider({ children }: { children: any }) {
 
   useEffect(() => {
     fetch();
-  }, []);
+  }, [inspectionMode, inspectedUserId, token]);
 
   return (
     <Ctx.Provider value={{ portfolioList, currentPortfolioId, setCurrentPortfolioId, loading, error, refetch: fetch }}>
