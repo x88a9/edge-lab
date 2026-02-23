@@ -98,6 +98,13 @@ class User(Base):
     )
 
 
+    variant_analytics = relationship(
+        "VariantAnalytics",
+        back_populates="user",
+        cascade="all, delete-orphan",
+    )
+
+
 class Strategy(Base):
     __tablename__ = "strategies"
 
@@ -196,6 +203,13 @@ class Variant(Base):
         back_populates="variant",
         cascade="all, delete-orphan",
         uselist=False,
+    )
+
+    analytics = relationship(
+        "VariantAnalytics",
+        back_populates="variant",
+        uselist=False,
+        cascade="all, delete-orphan",
     )
 
 
@@ -453,3 +467,69 @@ class RunAnalytics(Base):
 
     run = relationship("Run", back_populates="analytics")
     user = relationship("User", back_populates="run_analytics")
+
+class VariantAnalytics(Base):
+    __tablename__ = "variant_analytics"
+
+    __table_args__ = (
+        UniqueConstraint("user_id", "variant_id", name="uq_variant_analytics_user_variant"),
+        Index("ix_variant_analytics_user_id", "user_id"),
+        Index("ix_variant_analytics_variant_id", "variant_id"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        primary_key=True,
+        default=uuid.uuid4,
+    )
+
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("users.id"),
+        nullable=False,
+    )
+
+    variant_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("variants.id"),
+        nullable=False,
+    )
+
+    aggregated_metrics_json: Mapped[dict] = mapped_column(
+        JSON,
+        nullable=False,
+    )
+
+    run_count: Mapped[int] = mapped_column(
+        Integer,
+        nullable=False,
+    )
+
+    is_dirty: Mapped[bool] = mapped_column(
+        Boolean,
+        default=True,
+        nullable=False,
+    )
+
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime,
+        default=datetime.utcnow,
+        nullable=False,
+    )
+
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime,
+        default=datetime.utcnow,
+        onupdate=datetime.utcnow,
+        nullable=False,
+    )
+
+    variant = relationship(
+        "Variant",
+        back_populates="analytics",
+    )
+
+    user = relationship(
+        "User",
+        back_populates="variant_analytics",
+    )

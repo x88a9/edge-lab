@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 from edge_lab.persistence.database import get_db
 from edge_lab.persistence.models import Run, Trade, User, RunAnalytics
 from edge_lab.security.auth import get_current_user
-
+from edge_lab.persistence.models import VariantAnalytics
 from edge_lab.analytics.metrics import MetricsEngine
 from edge_lab.analytics.equity import EquityBuilder
 from edge_lab.analytics.monte_carlo import MonteCarloEngine
@@ -260,6 +260,23 @@ def compute_analytics(
         db.add(analytics)
 
     db.commit()
+
+    # ------------------------------------------------------
+    # Dirty propagation to VariantAnalytics (Phase 3)
+    # ------------------------------------------------------
+
+    variant_snapshot = (
+        db.query(VariantAnalytics)
+        .filter(
+            VariantAnalytics.user_id == current_user.id,
+            VariantAnalytics.variant_id == run.variant_id,
+        )
+        .first()
+    )
+
+    if variant_snapshot:
+        variant_snapshot.is_dirty = True
+        db.commit()
 
     return {"status": "computed"}
 

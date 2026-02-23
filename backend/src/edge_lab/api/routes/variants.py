@@ -1,10 +1,10 @@
 from fastapi import APIRouter, HTTPException, Depends
 from sqlalchemy.orm import Session
 from edge_lab.persistence.database import get_db
-from edge_lab.persistence.models import Variant, Run, Strategy, User
+from edge_lab.persistence.models import Variant, Run, Strategy, User, VariantAnalytics, RunAnalytics
 from edge_lab.security.auth import get_current_user
 from edge_lab.analytics.variant_analyzer import VariantAnalyzer
-import uuid
+import uuid, statistics
 from pydantic import BaseModel
 
 router = APIRouter(tags=["Variants"])
@@ -187,4 +187,137 @@ def create_variant(
     return {
         "id": variant.id,
         "display_name": variant.display_name,
+    }
+
+# ==========================================================
+# COMPUTE VARIANT ANALYTICS (SNAPSHOT)
+# ==========================================================
+
+@router.post("/{variant_id}/compute-analytics")
+def compute_variant_analytics(
+    variant_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    variant = get_owned_variant(variant_id, db, current_user)
+
+    # load run analytics snapshots (clean only)
+    run_snapshots = (
+        db.query(RunAnalytics)
+        .join(Run, RunAnalytics.run_id == Run.id)
+        .filter(
+            Run.user_id == current_user.id,
+            Run.variant_id == variant.id,
+            RunAnalytics.is_dirty == False,
+        )
+        .all()
+    )
+
+    if not run_snapshots:
+        raise HTTPException(
+            status_code=400,
+            detail="No valid run analytics snapshots available.",
+        )
+
+    expectancies = []
+    log_growths = []
+    sharpes = []
+    max_drawdowns = []
+
+    for snapshot in run_snapshots:
+        metrics = snapshot.metrics_json or {}
+
+        # ⚠️ Verwende echte Keys aus RunAnalytics
+        e = metrics.get("expectancy_R")
+        g = metrics.get("log_growth")
+        s = metrics.get("sharpe")  # falls später ergänzt
+        d = metrics.get("max_drawdown_R")
+
+        if e is not None:
+            expectancies.append(e)
+
+        if g is not None:
+            log_growths.append(g)
+
+        if s is not None:
+            sharpes.append(s)
+
+        if d is not None:
+            max_drawdowns.append(d)
+
+    if not expectancies:
+        raise HTTPException(
+            status_code=400,
+            detail="No valid expectancy values to aggregate."
+        )
+
+    aggregated = {
+        "mean_expectancy": statistics.mean(expectancies),
+        "mean_log_growth": statistics.mean(log_growths) if log_growths else None,
+        "mean_sharpe": statistics.mean(sharpes) if sharpes else None,
+        "mean_max_drawdown": statistics.mean(max_drawdowns) if max_drawdowns else None,
+        "std_expectancy": statistics.pstdev(expectancies) if len(expectancies) > 1 else 0.0,
+        "best_run_expectancy": max(expectancies),
+        "worst_run_expectancy": min(expectancies),
+    }
+
+    existing = (
+        db.query(VariantAnalytics)
+        .filter(
+            VariantAnalytics.user_id == current_user.id,
+            VariantAnalytics.variant_id == variant.id,
+        )
+        .first()
+    )
+
+    if existing:
+        existing.aggregated_metrics_json = aggregated
+        existing.run_count = len(run_snapshots)
+        existing.is_dirty = False
+    else:
+        analytics = VariantAnalytics(
+            user_id=current_user.id,
+            variant_id=variant.id,
+            aggregated_metrics_json=aggregated,
+            run_count=len(run_snapshots),
+            is_dirty=False,
+        )
+        db.add(analytics)
+
+    db.commit()
+
+    return {"status": "computed"}
+
+# ==========================================================
+# GET VARIANT ANALYTICS (SNAPSHOT ONLY)
+# ==========================================================
+
+@router.get("/{variant_id}/analytics")
+def get_variant_analytics(
+    variant_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    variant = get_owned_variant(variant_id, db, current_user)
+
+    snapshot = (
+        db.query(VariantAnalytics)
+        .filter(
+            VariantAnalytics.user_id == current_user.id,
+            VariantAnalytics.variant_id == variant.id,
+        )
+        .first()
+    )
+
+    if not snapshot:
+        raise HTTPException(
+            status_code=404,
+            detail="Variant analytics not computed.",
+        )
+
+    return {
+        "aggregated_metrics": snapshot.aggregated_metrics_json,
+        "run_count": snapshot.run_count,
+        "is_dirty": snapshot.is_dirty,
+        "updated_at": snapshot.updated_at,
     }
