@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from edge_lab.api.routes import runs, variants, systems, trades
+from edge_lab.api.routes import runs, variants, systems, trades, portfolio
 from edge_lab.api.routes import auth
 
 app = FastAPI(title="edge lab API")
@@ -12,6 +12,7 @@ app.include_router(trades.router, prefix="/trades")
 app.include_router(runs.router, prefix="/runs")
 app.include_router(variants.router, prefix="/variants")
 app.include_router(systems.router, prefix="/systems")
+app.include_router(portfolio.router, prefix="/portfolio")
 
 app.add_middleware(
     CORSMiddleware,

@@ -4,6 +4,7 @@ from edge_lab.persistence.database import get_db
 from edge_lab.persistence.models import Variant, Run, Strategy, User, VariantAnalytics, RunAnalytics
 from edge_lab.security.auth import get_current_user
 from edge_lab.analytics.variant_analyzer import VariantAnalyzer
+from edge_lab.services.dirty_propagation import DirtyPropagationService
 import uuid, statistics
 from pydantic import BaseModel
 
@@ -283,6 +284,15 @@ def compute_variant_analytics(
             is_dirty=False,
         )
         db.add(analytics)
+
+    db.commit()
+
+    # Central Dirty Propagation
+    DirtyPropagationService.from_variant(
+        db,
+        current_user.id,
+        variant.id
+    )
 
     db.commit()
 

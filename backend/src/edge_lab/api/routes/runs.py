@@ -11,6 +11,7 @@ from edge_lab.analytics.risk_of_ruin import RiskOfRuinEngine
 from edge_lab.analytics.walk_forward import WalkForwardEngine
 from edge_lab.analytics.regime_detection import RegimeDetectionEngine
 from edge_lab.analytics.kelly_simulation import KellySimulationEngine
+from edge_lab.services.dirty_propagation import DirtyPropagationService
 import time
 import uuid
 from pydantic import BaseModel
@@ -261,22 +262,17 @@ def compute_analytics(
 
     db.commit()
 
-    # ------------------------------------------------------
-    # Dirty propagation to VariantAnalytics (Phase 3)
+     # ------------------------------------------------------
+    # Central Dirty Propagation
     # ------------------------------------------------------
 
-    variant_snapshot = (
-        db.query(VariantAnalytics)
-        .filter(
-            VariantAnalytics.user_id == current_user.id,
-            VariantAnalytics.variant_id == run.variant_id,
-        )
-        .first()
+    DirtyPropagationService.from_run(
+        db,
+        current_user.id,
+        run.variant_id
     )
 
-    if variant_snapshot:
-        variant_snapshot.is_dirty = True
-        db.commit()
+    db.commit()
 
     return {"status": "computed"}
 

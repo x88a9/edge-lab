@@ -104,6 +104,12 @@ class User(Base):
         cascade="all, delete-orphan",
     )
 
+    portfolio_analytics = relationship(
+        "PortfolioAnalytics",
+        back_populates="user",
+        cascade="all, delete-orphan",
+    )
+
 
 class Strategy(Base):
     __tablename__ = "strategies"
@@ -533,3 +539,91 @@ class VariantAnalytics(Base):
         "User",
         back_populates="variant_analytics",
     )
+
+class StrategyAnalytics(Base):
+    __tablename__ = "strategy_analytics"
+
+    __table_args__ = (
+        UniqueConstraint("user_id", "strategy_id", name="uq_strategy_analytics_user_strategy"),
+        Index("ix_strategy_analytics_user_id", "user_id"),
+        Index("ix_strategy_analytics_strategy_id", "strategy_id"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        primary_key=True,
+        default=uuid.uuid4,
+    )
+
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("users.id"),
+        nullable=False,
+    )
+
+    strategy_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("strategies.id"),
+        nullable=False,
+    )
+
+    aggregated_metrics_json: Mapped[dict] = mapped_column(JSON, nullable=False)
+
+    variant_count: Mapped[int] = mapped_column(Integer, nullable=False)
+
+    is_dirty: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, default=datetime.utcnow, nullable=False
+    )
+
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False
+    )
+
+    strategy = relationship("Strategy")
+    user = relationship("User")
+
+class PortfolioAnalytics(Base):
+    __tablename__ = "portfolio_analytics"
+
+    __table_args__ = (
+        UniqueConstraint("user_id", "name"),
+        Index("ix_portfolio_analytics_user_id", "user_id"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        primary_key=True,
+        default=uuid.uuid4,
+    )
+
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("users.id"),
+        nullable=False,
+    )
+
+    name: Mapped[str] = mapped_column(String(255), nullable=False)
+
+    allocation_mode: Mapped[str] = mapped_column(String(50), nullable=False)
+
+    allocation_config_json: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+
+    combined_metrics_json: Mapped[dict] = mapped_column(JSON, nullable=False)
+
+    combined_equity_json: Mapped[dict] = mapped_column(JSON, nullable=False)
+
+    strategy_count: Mapped[int] = mapped_column(Integer, nullable=False)
+
+    is_dirty: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, default=datetime.utcnow
+    )
+
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime, default=datetime.utcnow, onupdate=datetime.utcnow
+    )
+
+    user = relationship("User", back_populates="portfolio_analytics")
