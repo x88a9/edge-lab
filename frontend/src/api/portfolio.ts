@@ -4,8 +4,7 @@ import { PortfolioSnapshot } from '../types';
 export async function listPortfolios(): Promise<Array<{
   id: string;
   name: string;
-  allocation_mode: string;
-  strategy_count: number;
+  is_default: boolean;
   is_dirty: boolean;
   updated_at?: string;
 }>> {
@@ -32,11 +31,17 @@ export async function computePortfolio(portfolioId: string): Promise<{ status: s
   return data;
 }
 
-export async function createPortfolio(payload: {
-  name: string;
-  allocation_mode: 'equal_weight' | 'kelly_weighted' | 'fixed_weight';
-  allocation_config?: Record<string, any> | null;
-}): Promise<{ id: string }> {
+export async function createPortfolio(payload: { name: string }): Promise<{ id: string }> {
   const { data } = await apiClient.post('/portfolio/', payload);
+  return data;
+}
+
+export async function deletePortfolio(portfolioId: string): Promise<{ status: string }> {
+  const { data } = await apiClient.delete(`/portfolio/${portfolioId}`);
+  return data;
+}
+
+export async function moveSystemToPortfolio(portfolioId: string, strategyId: string): Promise<{ status: string }> {
+  const { data } = await apiClient.put(`/portfolio/${portfolioId}/systems/${strategyId}`);
   return data;
 }

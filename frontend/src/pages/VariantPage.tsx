@@ -21,6 +21,8 @@ export default function VariantPage() {
   const [runs, setRuns] = useState<any[]>([]);
   const [openRun, setOpenRun] = useState(false);
   const [analytics, setAnalytics] = useState<any | null>(null);
+  const [analyticsMissing, setAnalyticsMissing] = useState(false);
+  const [analyticsError, setAnalyticsError] = useState<string | null>(null);
   const [computing, setComputing] = useState(false);
   const { inspectionMode } = useAdminInspection();
 
@@ -45,11 +47,21 @@ export default function VariantPage() {
         const r = await listRunsForVariant(variantId);
         if (!cancelled) setRuns(r);
         // Fetch analytics snapshot
+        setAnalyticsError(null);
+        setAnalyticsMissing(false);
         try {
           const a = await getVariantAnalytics(variantId);
           if (!cancelled) setAnalytics(a);
-        } catch {
-          if (!cancelled) setAnalytics(null);
+        } catch (ae: any) {
+          const st = ae?.response?.status;
+          if (!cancelled) {
+            if (st === 404) {
+              setAnalytics(null);
+              setAnalyticsMissing(true);
+            } else {
+              setAnalyticsError(ae?.response?.data?.detail ?? ae.message);
+            }
+          }
         }
       } catch (e: any) {
         if (!cancelled) setError(e?.response?.data?.detail ?? e.message);
@@ -77,32 +89,49 @@ export default function VariantPage() {
       <div className="subline">Variant v{variant.version}</div>
       <div className="border-b border-neutral-800 mb-4"></div>
 
-      {analytics && (
-        <div className="card p-4 mb-4">
-          <div className="flex items-center justify-between mb-2">
-            <div className="section-title">Variant Analytics</div>
-            <div className="flex items-center gap-2">
-              {analytics.is_dirty && <span className="badge">Variant analytics outdated</span>}
-              <Button
-                variant="primary"
-                disabled={inspectionMode || computing}
-                onClick={async () => {
-                  if (!variantId) return;
-                  setComputing(true);
+      <div className="card p-4 mb-4">
+        <div className="flex items-center justify-between mb-2">
+          <div className="section-title">Variant Analytics</div>
+          <div className="flex items-center gap-2">
+            {analytics?.is_dirty && <span className="badge">Recompute required</span>}
+            <Button
+              variant="primary"
+              disabled={inspectionMode || computing}
+              onClick={async () => {
+                if (!variantId) return;
+                setComputing(true);
+                setAnalyticsError(null);
+                try {
+                  await computeVariantAnalytics(variantId);
                   try {
-                    await computeVariantAnalytics(variantId);
-                    setAnalytics({ ...analytics, is_dirty: false });
                     const snap = await getVariantAnalytics(variantId);
                     setAnalytics(snap);
-                  } finally {
-                    setComputing(false);
+                    setAnalyticsMissing(false);
+                  } catch (ae: any) {
+                    const st = ae?.response?.status;
+                    if (st === 404) {
+                      setAnalytics(null);
+                      setAnalyticsMissing(true);
+                    } else {
+                      setAnalyticsError(ae?.response?.data?.detail ?? ae.message);
+                    }
                   }
-                }}
-              >
-                {computing ? 'Computing…' : 'Recompute Variant'}
-              </Button>
-            </div>
+                } finally {
+                  setComputing(false);
+                }
+              }}
+            >
+              {computing ? 'Computing…' : 'Recompute Variant'}
+            </Button>
           </div>
+        </div>
+        {analyticsError && <div className="meta text-danger">{analyticsError}</div>}
+        {analyticsMissing && (
+          <div className="card p-3">
+            <div className="meta">Analytics not computed yet</div>
+          </div>
+        )}
+        {!analyticsMissing && analytics && (
           <div className={analytics.is_dirty ? 'opacity-60' : ''}>
             <div className="grid grid-cols-4 gap-3">
               <div className="card p-3">
@@ -139,8 +168,8 @@ export default function VariantPage() {
               </div>
             </div>
           </div>
-        </div>
-      )}
+        )}
+      </div>
 
       {variant.description && (
         <div className="card p-4 mb-4">

@@ -66,11 +66,16 @@ export async function listUserRunTrades(userId: string, runId: string): Promise<
 export async function listUserPortfolios(userId: string): Promise<Array<{
   id: string;
   name: string;
-  allocation_mode: string;
-  strategy_count: number;
+  is_default: boolean;
   is_dirty: boolean;
   updated_at?: string;
 }>> {
   const { data } = await apiClient.get(`/admin/users/${userId}/portfolios`);
-  return data;
+  return (data || []).map((p: any) => ({
+    id: p.id,
+    name: p.name,
+    is_default: !!p.is_default,
+    is_dirty: !!p.is_dirty,
+    updated_at: p.updated_at,
+  }));
 }

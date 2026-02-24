@@ -7,8 +7,7 @@ import { useAuth } from '../auth/AuthContext';
 interface PortfolioSummary {
   id: string;
   name: string;
-  allocation_mode: string;
-  strategy_count: number;
+  is_default: boolean;
   is_dirty: boolean;
   updated_at?: string;
 }
@@ -49,7 +48,10 @@ export function PortfolioProvider({ children }: { children: any }) {
       }
       setList(list);
     } catch (e: any) {
-      setError(e?.response?.data?.detail ?? e.message);
+      const status = e?.response?.status;
+      if (status === 400) setError('Ungültige Anfrage');
+      else if (status === 409) setError('Integritätskonflikt');
+      else setError(e?.response?.data?.detail ?? e.message);
     } finally {
       setLoading(false);
     }
