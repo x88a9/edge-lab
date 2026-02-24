@@ -45,6 +45,46 @@ def list_systems(
         for s in systems
     ]
 
+# ==========================================================
+# LIST VARIANTS FOR SYSTEM (ISOLATED)
+# ==========================================================
+
+@router.get("/{system_id}/variants")
+def list_variants_for_system(
+    system_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    system = (
+        db.query(Strategy)
+        .filter(
+            Strategy.id == uuid.UUID(system_id),
+            Strategy.user_id == current_user.id,
+        )
+        .first()
+    )
+
+    if not system:
+        raise HTTPException(status_code=404, detail="System not found.")
+
+    variants = (
+        db.query(Variant)
+        .filter(
+            Variant.strategy_id == system.id,
+            Variant.user_id == current_user.id,
+        )
+        .all()
+    )
+
+    return [
+        {
+            "id": v.id,
+            "display_name": v.display_name or v.name,
+            "name": v.name,
+            "version": v.version_number,
+        }
+        for v in variants
+    ]
 
 # ==========================================================
 # GET SYSTEM (ISOLATED)
@@ -230,7 +270,8 @@ def compute_strategy_analytics(
     # Central Dirty Propagation
     DirtyPropagationService.from_strategy(
         db,
-        current_user.id
+        current_user.id,
+        strategy.id
     )
 
     db.commit()

@@ -110,6 +110,67 @@ class User(Base):
         cascade="all, delete-orphan",
     )
 
+    portfolios = relationship(
+        "Portfolio",
+        back_populates="user",
+        cascade="all, delete-orphan",
+    )
+
+class Portfolio(Base):
+    __tablename__ = "portfolios"
+
+    __table_args__ = (
+        UniqueConstraint("user_id", "name", name="uq_portfolios_user_name"),
+        Index("ix_portfolios_user_id", "user_id"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        primary_key=True,
+        default=uuid.uuid4,
+    )
+
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("users.id"),
+        nullable=False,
+    )
+
+    name: Mapped[str] = mapped_column(String(255), nullable=False)
+
+    is_default: Mapped[bool] = mapped_column(
+        Boolean,
+        default=False,
+        nullable=False,
+    )
+
+    is_dirty: Mapped[bool] = mapped_column(
+        Boolean,
+        default=True,
+        nullable=False,
+    )
+
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime,
+        default=datetime.utcnow,
+        nullable=False,
+    )
+
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime,
+        default=datetime.utcnow,
+        onupdate=datetime.utcnow,
+        nullable=False,
+    )
+
+    user = relationship("User", back_populates="portfolios")
+
+    strategies = relationship(
+        "Strategy",
+        back_populates="portfolio",
+    )
+
+
 
 class Strategy(Base):
     __tablename__ = "strategies"
@@ -117,6 +178,7 @@ class Strategy(Base):
     __table_args__ = (
         UniqueConstraint("user_id", "name", name="uq_strategies_user_name"),
         Index("ix_strategies_user_id", "user_id"),
+        Index("ix_strategies_portfolio_id", "portfolio_id"),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(
@@ -147,6 +209,17 @@ class Strategy(Base):
         "Variant",
         back_populates="strategy",
         cascade="all, delete-orphan",
+    )
+
+    portfolio_id = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("portfolios.id"),
+        nullable=False,
+    )
+
+    portfolio = relationship(
+        "Portfolio",
+        back_populates="strategies",
     )
 
 

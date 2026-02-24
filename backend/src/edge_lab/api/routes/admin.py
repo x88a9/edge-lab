@@ -11,6 +11,7 @@ from edge_lab.persistence.models import (
     Run,
     Trade,
     PortfolioAnalytics,
+    Portfolio,
 )
 from edge_lab.security.auth import require_admin_user
 from edge_lab.security.password import hash_password
@@ -52,6 +53,17 @@ def bootstrap_admin(
     db.add(admin)
     db.commit()
     db.refresh(admin)
+
+    # Create Default Portfolio
+    default_portfolio = Portfolio(
+        user_id=admin.id,
+        name="Default",
+        is_default=True,
+        is_dirty=True,
+    )
+
+    db.add(default_portfolio)
+    db.commit()
 
     return {"status": "admin_created"}
 
@@ -109,6 +121,17 @@ def create_user(
     db.add(user)
     db.commit()
     db.refresh(user)
+
+    # Create Default Portfolio
+    default_portfolio = Portfolio(
+        user_id=user.id,
+        name="Default",
+        is_default=True,
+        is_dirty=True,
+    )
+
+    db.add(default_portfolio)
+    db.commit()
 
     return {
         "id": user.id,
