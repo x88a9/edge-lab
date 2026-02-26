@@ -4,15 +4,7 @@ from edge_lab.persistence.database import get_db
 from edge_lab.persistence.models import Run, Trade, User, RunAnalytics
 from edge_lab.security.auth import get_current_user
 from edge_lab.persistence.models import VariantAnalytics
-from edge_lab.analytics.metrics import MetricsEngine
-from edge_lab.analytics.equity import EquityBuilder
-from edge_lab.analytics.monte_carlo import MonteCarloEngine
-from edge_lab.analytics.risk_of_ruin import RiskOfRuinEngine
-from edge_lab.analytics.walk_forward import WalkForwardEngine
-from edge_lab.analytics.regime_detection import RegimeDetectionEngine
-from edge_lab.analytics.kelly_simulation import KellySimulationEngine
-from edge_lab.services.dirty_propagation import DirtyPropagationService
-import time
+from edge_lab.analytics.hierarchy_compute import HierarchyComputeService
 import uuid
 from pydantic import BaseModel
 
@@ -162,118 +154,7 @@ def compute_analytics(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    run = get_owned_run(run_id, db, current_user)
-
-    start = time.time()
-    metrics = MetricsEngine.generate_for_run(
-        db=db,
-        run_id=run.id,
-        user_id=current_user.id,
-    )
-    print("metrics:", time.time() - start)
-
-    start = time.time()
-    equity_df = EquityBuilder.build_equity_series(
-        db=db,
-        run_id=run.id,
-        user_id=current_user.id,
-    )
-    equity = {
-        "equity": equity_df["equity"].tolist(),
-        "drawdown": equity_df["drawdown"].tolist(),
-    }
-    print("equity:", time.time() - start)
-
-    start = time.time()
-    walk_forward = WalkForwardEngine.run(
-        db=db,
-        run_id=run.id,
-        user_id=current_user.id,
-    )
-    print("walk:", time.time() - start)
-
-    start = time.time()
-    monte_carlo = MonteCarloEngine.bootstrap_run(
-        db=db,
-        run_id=run.id,
-        user_id=current_user.id,
-        simulations=3000,
-    )
-    print("mc:", time.time() - start)
-
-    start = time.time()
-    risk_of_ruin = RiskOfRuinEngine.simulate(
-        db=db,
-        run_id=run.id,
-        user_id=current_user.id,
-        simulations=3000,
-        position_fraction=0.01,
-        ruin_threshold=0.7,
-    )
-    print("ror:", time.time() - start)
-
-    start = time.time()
-    regime = RegimeDetectionEngine.detect(
-        db=db,
-        run_id=run.id,
-        user_id=current_user.id,
-    )
-    print("regimedetection:", time.time() - start)
-
-    start = time.time()
-    kelly = KellySimulationEngine.generate_for_run(
-        db=db,
-        run_id=run.id,
-        user_id=current_user.id,
-    )
-    print("kelly:", time.time() - start)
-    existing = (
-        db.query(RunAnalytics)
-        .filter(
-            RunAnalytics.user_id == current_user.id,
-            RunAnalytics.run_id == run.id,
-        )
-        .first()
-    )
-
-    if existing:
-        existing.metrics_json = metrics
-        existing.equity_json = equity
-        existing.walk_forward_json = walk_forward
-        existing.monte_carlo_json = monte_carlo
-        existing.risk_of_ruin_json = risk_of_ruin
-        existing.regime_json = regime
-        existing.kelly_json = kelly
-        existing.is_dirty = False
-    else:
-        analytics = RunAnalytics(
-            user_id=current_user.id,
-            run_id=run.id,
-            metrics_json=metrics,
-            equity_json=equity,
-            walk_forward_json=walk_forward,
-            monte_carlo_json=monte_carlo,
-            risk_of_ruin_json=risk_of_ruin,
-            regime_json=regime,
-            kelly_json=kelly,
-            is_dirty=False,
-        )
-        db.add(analytics)
-
-    db.commit()
-
-     # ------------------------------------------------------
-    # Central Dirty Propagation
-    # ------------------------------------------------------
-
-    DirtyPropagationService.from_run(
-        db,
-        current_user.id,
-        run.variant_id
-    )
-
-    db.commit()
-
+    HierarchyComputeService.compute_run(run_id, db, current_user)
     return {"status": "computed"}
 
 

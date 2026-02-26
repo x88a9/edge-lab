@@ -9,6 +9,7 @@ from edge_lab.persistence.models import (
     User,
 )
 from edge_lab.security.auth import get_current_user
+from edge_lab.analytics.hierarchy_compute import HierarchyComputeService
 import uuid
 from pydantic import BaseModel
 
@@ -197,79 +198,7 @@ def compute_portfolio(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    portfolio = get_owned_portfolio(portfolio_id, db, current_user)
-
-    strategies = (
-        db.query(StrategyAnalytics)
-        .join(Strategy, Strategy.id == StrategyAnalytics.strategy_id)
-        .filter(
-            StrategyAnalytics.user_id == current_user.id,
-            StrategyAnalytics.is_dirty == False,
-            Strategy.portfolio_id == portfolio.id,
-        )
-        .all()
-    )
-
-    if not strategies:
-        raise HTTPException(status_code=400, detail="No strategy analytics available.")
-
-    weights = [1 / len(strategies)] * len(strategies)
-
-    horizon = 50
-    capital = 1
-    equity = []
-
-    for _ in range(horizon):
-        step = 0
-        for w, s in zip(weights, strategies):
-            g = s.aggregated_metrics_json.get("mean_log_growth", 0) or 0
-            step += w * g
-        capital *= (1 + step)
-        equity.append(capital)
-
-    combined_metrics = {
-        "combined_mean_log_growth": sum(
-            w * (s.aggregated_metrics_json.get("mean_log_growth", 0) or 0)
-            for w, s in zip(weights, strategies)
-        ),
-        "combined_expectancy": sum(
-            w * (s.aggregated_metrics_json.get("mean_expectancy", 0) or 0)
-            for w, s in zip(weights, strategies)
-        ),
-    }
-
-    snapshot = (
-        db.query(PortfolioAnalytics)
-        .filter(
-            PortfolioAnalytics.user_id == current_user.id,
-            PortfolioAnalytics.id == portfolio.id,
-        )
-        .first()
-    )
-
-    if snapshot:
-        snapshot.combined_metrics_json = combined_metrics
-        snapshot.combined_equity_json = {"equity": equity}
-        snapshot.strategy_count = len(strategies)
-        snapshot.is_dirty = False
-    else:
-        snapshot = PortfolioAnalytics(
-            id=portfolio.id,
-            user_id=current_user.id,
-            name=portfolio.name,
-            allocation_mode="equal_weight",
-            allocation_config_json=None,
-            combined_metrics_json=combined_metrics,
-            combined_equity_json={"equity": equity},
-            strategy_count=len(strategies),
-            is_dirty=False,
-        )
-        db.add(snapshot)
-
-    portfolio.is_dirty = False
-
-    db.commit()
-
+    HierarchyComputeService.compute_portfolio(portfolio_id, db, current_user)
     return {"status": "computed"}
 
 

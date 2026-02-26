@@ -91,7 +91,7 @@ export default function PortfolioPage() {
       setTreeLoading(true);
       setTreeError(null);
       try {
-        const sysResp = await apiClient.get(`/portfolio/${portfolioId}/systems`);
+        const sysResp = await apiClient.get('/systems', { params: { portfolio_id: portfolioId } });
         const sysList: any[] = Array.isArray(sysResp.data) ? sysResp.data : [];
         setSystems(sysList);
         const variantEntries = await Promise.all(sysList.map(async (s: any) => {
@@ -147,6 +147,7 @@ export default function PortfolioPage() {
               onClick={async () => {
                 if (!portfolioId) return;
                 setComputing(true);
+                setAnalyticsError(null);
                 try {
                   await computePortfolio(portfolioId);
                   let attempts = 0;
@@ -190,6 +191,14 @@ export default function PortfolioPage() {
                     setAnalytics(null);
                     setAnalyticsMissing(true);
                   }
+                } catch (err: any) {
+                  const status = err?.response?.status;
+                  if (status === 400) {
+                    setAnalyticsError('No strategy analytics available. Compute system analytics first.');
+                  } else {
+                    setAnalyticsError(err?.response?.data?.detail ?? err.message);
+                  }
+                  setAnalyticsMissing(true);
                 } finally {
                   setComputing(false);
                 }
@@ -207,20 +216,25 @@ export default function PortfolioPage() {
         )}
         {!analyticsMissing && analytics && (
           <div className={gov.is_dirty ? 'opacity-60' : ''}>
+            {(() => {
+              const cm = analytics?.combined_metrics ?? null;
+              return (
             <div className="grid grid-cols-3 gap-3 mb-4">
               <div className="card p-3">
                 <div className="meta">Combined Expectancy</div>
-                <div>{analytics.combined_metrics?.combined_expectancy ?? '—'}</div>
+                <div>{cm?.combined_expectancy ?? '—'}</div>
               </div>
               <div className="card p-3">
                 <div className="meta">Combined Log Growth</div>
-                <div>{analytics.combined_metrics?.combined_mean_log_growth ?? '—'}</div>
+                <div>{cm?.combined_mean_log_growth ?? '—'}</div>
               </div>
               <div className="card p-3">
                 <div className="meta">Strategy Count</div>
                 <div>{analytics.strategy_count}</div>
               </div>
             </div>
+              );
+            })()}
             <div>
               <div className="section-title mb-2">Combined Equity</div>
               <svg width={800} height={200} className="bg-neutral-900 border border-neutral-800 rounded-lg">

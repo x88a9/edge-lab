@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 from edge_lab.persistence.database import get_db
 from edge_lab.persistence.models import *
 from edge_lab.security.auth import get_current_user
-from edge_lab.services.dirty_propagation import DirtyPropagationService
+from edge_lab.analytics.hierarchy_compute import HierarchyComputeService
 import uuid, statistics
 from pydantic import BaseModel
 from typing import Optional
@@ -193,89 +193,7 @@ def compute_strategy_analytics(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    strategy = (
-        db.query(Strategy)
-        .filter(
-            Strategy.id == uuid.UUID(system_id),
-            Strategy.user_id == current_user.id,
-        )
-        .first()
-    )
-
-    if not strategy:
-        raise HTTPException(status_code=404, detail="System not found.")
-
-    variant_snapshots = (
-        db.query(VariantAnalytics)
-        .join(Variant, VariantAnalytics.variant_id == Variant.id)
-        .filter(
-            Variant.user_id == current_user.id,
-            Variant.strategy_id == strategy.id,
-            VariantAnalytics.is_dirty == False,
-        )
-        .all()
-    )
-
-    if not variant_snapshots:
-        raise HTTPException(status_code=400, detail="No valid variant analytics.")
-
-    expectancies = []
-    log_growths = []
-
-    for snapshot in variant_snapshots:
-        metrics = snapshot.aggregated_metrics_json or {}
-
-        e = metrics.get("mean_expectancy")
-        g = metrics.get("mean_log_growth")
-
-        if e is not None:
-            expectancies.append(e)
-        if g is not None:
-            log_growths.append(g)
-
-    if not expectancies:
-        raise HTTPException(status_code=400, detail="No valid values to aggregate.")
-
-    aggregated = {
-        "mean_expectancy": statistics.mean(expectancies),
-        "mean_log_growth": statistics.mean(log_growths) if log_growths else None,
-    }
-
-    existing = (
-        db.query(StrategyAnalytics)
-        .filter(
-            StrategyAnalytics.user_id == current_user.id,
-            StrategyAnalytics.strategy_id == strategy.id,
-        )
-        .first()
-    )
-
-    if existing:
-        existing.aggregated_metrics_json = aggregated
-        existing.variant_count = len(variant_snapshots)
-        existing.is_dirty = False
-    else:
-        db.add(
-            StrategyAnalytics(
-                user_id=current_user.id,
-                strategy_id=strategy.id,
-                aggregated_metrics_json=aggregated,
-                variant_count=len(variant_snapshots),
-                is_dirty=False,
-            )
-        )
-
-    db.commit()
-
-    # Central Dirty Propagation
-    DirtyPropagationService.from_strategy(
-        db,
-        current_user.id,
-        strategy.id
-    )
-
-    db.commit()
-
+    HierarchyComputeService.compute_strategy(system_id, db, current_user)
     return {"status": "computed"}
 
 @router.get("/{system_id}/analytics")
