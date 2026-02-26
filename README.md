@@ -207,8 +207,5 @@ Goal: Remove manual compute triggers.
 - Job queue
 - Deterministic compute versioning
 
-## Screenshots
-
-
 ## License
 MIT

@@ -34,11 +34,5 @@
 - Configure NGINX for TLS and stricter headers if internet-facing
 - Use dedicated Postgres instance and managed backups
 
-## Screenshots
-
-```id="scr-deploy-1"
-<!-- SCREENSHOT: Compose services status -->
-<!-- What: Terminal or dashboard showing db/backend/frontend up -->
-<!-- Why: Confirms orchestrated deployment -->
-<!-- Placement: docs/deployment.md top section -->
-```
+**Compose services**
+![Compose services](../screenshots/docker_containers.png)
